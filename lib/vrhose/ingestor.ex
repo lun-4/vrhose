@@ -24,6 +24,7 @@ defmodule VRHose.Ingestor do
      %{
        subscribers: [],
        handles: %{},
+       counter: 0,
        conn_pid: nil
      }, {:continue, :connect}}
   end
@@ -52,7 +53,7 @@ defmodule VRHose.Ingestor do
         case msg["commit"]["record"]["$type"] do
           "app.bsky.feed.post" ->
             fanout_post(state, timestamp, msg)
-            {:noreply, state}
+            {:noreply, put_in(state.counter, state.counter + 1)}
 
           _ ->
             # simply ignore non-posts lol
@@ -75,9 +76,9 @@ defmodule VRHose.Ingestor do
     # IO.puts("#{inspect(timestamp)} -> #{post_text}")
 
     post_data = %{
-      timestamp: timestamp |> DateTime.to_unix(),
+      timestamp: (timestamp |> DateTime.to_unix(:millisecond)) / 1000,
       text: post_record["text"],
-      author_handle: Map.get(state.handles, post_record["did"]) || "unknown atm"
+      author_handle: Map.get(state.handles, msg["did"]) || msg["did"]
     }
 
     state.subscribers

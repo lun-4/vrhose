@@ -44,15 +44,20 @@ defmodule VRHose.Timeliner do
   @impl true
   def handle_call(:fetch, _, state) do
     {:reply,
-     state.posts
-     |> Enum.map(fn post ->
-       %{
-         t: "p",
-         a: "TODO",
-         b: post.author_handle,
-         c: post.text,
-         d: post.timestamp
-       }
-     end), state}
+     {:ok,
+      %{
+        time: DateTime.utc_now() |> DateTime.to_unix(),
+        batch:
+          state.posts
+          |> Enum.map(fn post ->
+            %{
+              t: "p",
+              a: "<TODO name resolution>",
+              b: post.author_handle,
+              c: post.text,
+              d: post.timestamp
+            }
+          end)
+      }}, state}
   end
 end

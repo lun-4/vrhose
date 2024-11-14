@@ -2,7 +2,7 @@ defmodule VRHoseWeb.MainController do
   use VRHoseWeb, :controller
 
   def hi(conn, _) do
-    timeline =
+    {:ok, timeline} =
       Registry.lookup(Registry.Timeliners, "timeliner")
       |> Enum.random()
       |> then(fn {pid, _} ->
@@ -10,8 +10,6 @@ defmodule VRHoseWeb.MainController do
       end)
 
     conn
-    |> json(%{
-      batch: timeline
-    })
+    |> json(timeline)
   end
 end
