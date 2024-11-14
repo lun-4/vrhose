@@ -26,8 +26,8 @@ defmodule VRHose.Websocket do
     GenServer.call(pid, {:send_text, text})
   end
 
-  def close(pid, code) do
-    GenServer.call(pid, {:close, code})
+  def close(pid, code, reason) do
+    GenServer.call(pid, {:close, code, reason})
   end
 
   @impl GenServer
@@ -165,8 +165,8 @@ defmodule VRHose.Websocket do
         %{state | closing?: true}
 
       {:text, text}, state ->
-        send(state.caller_pid, {:websocket_text, text})
-        # {:ok, state} = send_frame(state, {:text, String.reverse(text)})
+        timestamp = DateTime.utc_now()
+        send(state.caller_pid, {:websocket_text, timestamp, text})
         state
 
       frame, state ->
@@ -183,8 +183,8 @@ defmodule VRHose.Websocket do
     {:stop, :normal, state}
   end
 
-  def handle_call({:close, code}, _from, state) do
-    _ = send_frame(state, {:close, code, nil})
+  def handle_call({:close, code, reason}, _from, state) do
+    _ = send_frame(state, {:close, code, reason})
     Mint.HTTP.close(state.conn)
     {:reply, :ok, state}
   end
