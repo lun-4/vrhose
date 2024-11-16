@@ -55,7 +55,8 @@ defmodule VRHose.Timeliner do
               a: "<TODO name resolution>",
               b: post.author_handle,
               c: post.text,
-              d: post.timestamp
+              d: post.timestamp,
+              l: post.languages
             }
           end)
       }}, state}

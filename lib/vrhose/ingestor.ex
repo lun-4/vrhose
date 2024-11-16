@@ -47,7 +47,7 @@ defmodule VRHose.Ingestor do
 
   @impl true
   def handle_info(:print_stats, state) do
-    Logger.info("message counter: #{state.message_counter}")
+    Logger.info("#{DateTime.utc_now()} - message counter: #{state.message_counter}")
     Process.send_after(self(), :print_stats, 1000)
     {:noreply, put_in(state.message_counter, 0)}
   end
@@ -90,6 +90,7 @@ defmodule VRHose.Ingestor do
     post_data = %{
       timestamp: (timestamp |> DateTime.to_unix(:millisecond)) / 1000,
       text: post_record["text"],
+      languages: (post_record["langs"] || []) |> Enum.at(0) || "",
       author_handle: Map.get(state.handles, msg["did"]) || msg["did"]
     }
 
