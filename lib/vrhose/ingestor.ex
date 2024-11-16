@@ -20,11 +20,14 @@ defmodule VRHose.Ingestor do
 
   @impl true
   def init(_opts) do
+    Process.send_after(self(), :print_stats, 1000)
+
     {:ok,
      %{
        subscribers: [],
        handles: %{},
        counter: 0,
+       message_counter: 0,
        conn_pid: nil
      }, {:continue, :connect}}
   end
@@ -43,10 +46,19 @@ defmodule VRHose.Ingestor do
   end
 
   @impl true
+  def handle_info(:print_stats, state) do
+    Logger.info("message counter: #{state.message_counter}")
+    Process.send_after(self(), :print_stats, 1000)
+    {:noreply, put_in(state.message_counter, 0)}
+  end
+
+  @impl true
   def handle_info({:websocket_text, timestamp, text}, state) do
     msg =
       text
       |> Jason.decode!()
+
+    state = put_in(state.message_counter, state.message_counter + 1)
 
     case msg["kind"] do
       "commit" ->
