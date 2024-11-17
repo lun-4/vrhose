@@ -5,6 +5,8 @@ defmodule VRHose.Application do
 
   use Application
 
+  @jetstream "wss://jetstream2.us-west.bsky.network/subscribe?wantedCollections=app.bsky.feed.post"
+
   @impl true
   def start(_type, _args) do
     children =
@@ -20,7 +22,18 @@ defmodule VRHose.Application do
           # , partitions: System.schedulers_online()},
           keys: :duplicate, name: Registry.Timeliners
         },
-        VRHose.Ingestor,
+        {VRHose.Ingestor, name: {:global, VRHose.Ingestor}},
+        %{
+          start:
+            {VRHose.Websocket, :start_and_connect,
+             [
+               [
+                 url: @jetstream,
+                 send_to: VRHose.Ingestor
+               ]
+             ]},
+          id: "websocket"
+        },
         VRHoseWeb.Endpoint
       ] ++ workers()
 

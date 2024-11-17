@@ -34,9 +34,14 @@ defmodule VRHose.Ingestor do
 
   @impl true
   def handle_continue(:connect, state) do
-    Logger.info("opening connection to #{@jetstream}...")
+    # Logger.info("opening connection to #{@jetstream}...")
 
-    {:ok, pid} = VRHose.Websocket.connect(@jetstream)
+    # {:ok, pid} = VRHose.Websocket.connect(@jetstream)
+    # {:noreply, put_in(state.conn_pid, pid)}
+    {:noreply, state}
+  end
+
+  def handle_info({:ws_connected, pid}, state) do
     {:noreply, put_in(state.conn_pid, pid)}
   end
 

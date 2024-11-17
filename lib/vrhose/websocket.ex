@@ -15,6 +15,14 @@ defmodule VRHose.Websocket do
     :closing?
   ]
 
+  def start_and_connect(opts) do
+    {:ok, pid} = GenServer.start_link(__MODULE__, opts)
+    url = opts |> Keyword.get(:url)
+    send_to = opts |> Keyword.get(:send_to)
+    {:ok, :connected} = GenServer.call(pid, {:connect, url, send_to})
+    {:ok, pid}
+  end
+
   def connect(url) do
     with {:ok, socket} <- GenServer.start_link(__MODULE__, []),
          {:ok, :connected} <- GenServer.call(socket, {:connect, url, self()}) do
@@ -31,7 +39,7 @@ defmodule VRHose.Websocket do
   end
 
   @impl GenServer
-  def init([]) do
+  def init(_opts) do
     {:ok, %__MODULE__{}}
   end
 
@@ -66,6 +74,7 @@ defmodule VRHose.Websocket do
     with {:ok, conn} <- Mint.HTTP1.connect(http_scheme, uri.host, uri.port),
          {:ok, conn, ref} <- Mint.WebSocket.upgrade(ws_scheme, conn, path, []) do
       state = %{state | conn: conn, request_ref: ref, caller: from, caller_pid: caller_pid}
+      send(caller_pid, {:ws_connected, self()})
       {:noreply, state}
     else
       {:error, reason} ->
