@@ -34,6 +34,10 @@ defmodule VRHose.Websocket do
     GenServer.call(pid, {:send_text, text})
   end
 
+  def send_ping(pid) do
+    GenServer.call(pid, :ping)
+  end
+
   def close(pid, code, reason) do
     GenServer.call(pid, {:close, code, reason})
   end
@@ -46,6 +50,19 @@ defmodule VRHose.Websocket do
   @impl GenServer
   def handle_call({:send_text, text}, _from, state) do
     {:ok, state} = send_frame(state, {:text, text})
+    {:reply, :ok, state}
+  end
+
+  @impl GenServer
+  def handle_call(:ping, _from, state) do
+    {:ok, state} = send_frame(state, {:ping, "ping!"})
+    {:reply, :ok, state}
+  end
+
+  @impl GenServer
+  def handle_call({:close, code, reason}, _from, state) do
+    _ = send_frame(state, {:close, code, reason})
+    Mint.HTTP.close(state.conn)
     {:reply, :ok, state}
   end
 
@@ -173,6 +190,10 @@ defmodule VRHose.Websocket do
         {:ok, state} = send_frame(state, {:pong, data})
         state
 
+      {:pong, data}, state ->
+        send(state.caller_pid, {:websocket_pong, data})
+        state
+
       {:close, _code, reason}, state ->
         Logger.debug("Closing connection: #{inspect(reason)}")
         %{state | closing?: true}
@@ -183,7 +204,7 @@ defmodule VRHose.Websocket do
         state
 
       frame, state ->
-        Logger.debug("Unexpected frame received: #{inspect(frame)}")
+        Logger.warning("Unexpected frame received: #{inspect(frame)}")
         state
     end)
   end
@@ -191,15 +212,10 @@ defmodule VRHose.Websocket do
   defp do_close(state) do
     # Streaming a close frame may fail if the server has already closed
     # for writing.
+    Logger.info("closing #{inspect(state)}")
     _ = send_frame(state, {:close, 1000, nil})
     Mint.HTTP.close(state.conn)
     {:stop, :normal, state}
-  end
-
-  def handle_call({:close, code, reason}, _from, state) do
-    _ = send_frame(state, {:close, code, reason})
-    Mint.HTTP.close(state.conn)
-    {:reply, :ok, state}
   end
 
   defp reply(state, response) do

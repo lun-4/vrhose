@@ -5,7 +5,7 @@ defmodule VRHose.Ingestor do
   # @host "jetstream2.us-west.bsky.network"
   # @path "/subscribe"
 
-  @jetstream "wss://jetstream2.us-west.bsky.network/subscribe?wantedCollections=app.bsky.feed.post"
+  # @jetstream "wss://jetstream2.us-west.bsky.network/subscribe?wantedCollections=app.bsky.feed.post"
   # Client API
 
   def start_link(opts \\ []) do
@@ -20,7 +20,9 @@ defmodule VRHose.Ingestor do
 
   @impl true
   def init(_opts) do
+    Logger.info("initializing ingestor")
     Process.send_after(self(), :print_stats, 1000)
+    Process.send_after(self(), :ping_ws, 20000)
 
     {:ok,
      %{
@@ -28,7 +30,8 @@ defmodule VRHose.Ingestor do
        handles: %{},
        counter: 0,
        message_counter: 0,
-       conn_pid: nil
+       conn_pid: nil,
+       pong: true
      }, {:continue, :connect}}
   end
 
@@ -41,13 +44,14 @@ defmodule VRHose.Ingestor do
     {:noreply, state}
   end
 
-  def handle_info({:ws_connected, pid}, state) do
-    {:noreply, put_in(state.conn_pid, pid)}
-  end
-
   @impl true
   def handle_call(:subscribe, {pid, _}, state) do
     {:reply, :ok, put_in(state.subscribers, state.subscribers ++ [pid])}
+  end
+
+  @impl true
+  def handle_info({:ws_connected, pid}, state) do
+    {:noreply, put_in(state.conn_pid, pid)}
   end
 
   @impl true
@@ -55,6 +59,35 @@ defmodule VRHose.Ingestor do
     Logger.info("#{DateTime.utc_now()} - message counter: #{state.message_counter}")
     Process.send_after(self(), :print_stats, 1000)
     {:noreply, put_in(state.message_counter, 0)}
+  end
+
+  @impl true
+  def handle_info(:ping_ws, state) do
+    Logger.info("#{DateTime.utc_now()} - pinging websocket")
+
+    if state.conn_pid do
+      Process.send_after(self(), :ping_ws, 20000)
+      Process.send_after(self(), :check_websocket_pong, 10000)
+      :ok = VRHose.Websocket.send_ping(state.conn_pid)
+      {:noreply, put_in(state.pong, false)}
+    else
+      # restart the websocket immediately (its been 20sec)
+      Logger.warning(
+        "no connection available to ping, this should not happen, finding process to kill.."
+      )
+
+      ws_pid =
+        Supervisor.which_children(VRHose.Supervisor)
+        |> Enum.filter(fn {name, _, _, _} ->
+          name == "websocket"
+        end)
+        |> Enum.at(0)
+        |> then(fn {_, pid, _, _} -> pid end)
+
+      :erlang.exit(ws_pid, :no_connection)
+
+      {:noreply, put_in(state.pong, true)}
+    end
   end
 
   @impl true
@@ -88,6 +121,23 @@ defmodule VRHose.Ingestor do
     end
   end
 
+  @impl true
+  def handle_info({:websocket_pong, _data}, state) do
+    Logger.info("pong")
+    {:noreply, put_in(state.pong, true)}
+  end
+
+  @impl true
+  def handle_info(:check_websocket_pong, state) do
+    if state.pong do
+      {:noreply, put_in(state.pong, true)}
+    else
+      Logger.warning("no pong... killing the connection")
+      :erlang.exit(state.conn_pid, :timeout_ping)
+      {:noreply, put_in(state.pong, true)}
+    end
+  end
+
   defp fanout_post(state, timestamp, msg) do
     post_record = msg["commit"]["record"]
     # IO.puts("#{inspect(timestamp)} -> #{post_text}")
@@ -109,12 +159,11 @@ defmodule VRHose.Ingestor do
   end
 
   @impl true
-  def terminate(_reason, %{conn_pid: conn_pid}) do
-    VRHose.Websocket.close(conn_pid, 1000, "uwaa")
-  end
-
-  @impl true
   def terminate(reason, state) do
+    if state.conn_pid != nil do
+      VRHose.Websocket.close(state.conn_pid, 1000, "uwaa")
+    end
+
     Logger.error("terminating #{inspect(reason)} #{inspect(state)}")
   end
 end
