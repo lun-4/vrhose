@@ -51,6 +51,7 @@ defmodule VRHose.Websocket do
 
   @impl GenServer
   def handle_call({:connect, url, caller_pid}, from, state) do
+    Logger.info("connecting to #{url}")
     uri = URI.parse(url)
 
     http_scheme =
@@ -74,13 +75,16 @@ defmodule VRHose.Websocket do
     with {:ok, conn} <- Mint.HTTP1.connect(http_scheme, uri.host, uri.port),
          {:ok, conn, ref} <- Mint.WebSocket.upgrade(ws_scheme, conn, path, []) do
       state = %{state | conn: conn, request_ref: ref, caller: from, caller_pid: caller_pid}
+      Logger.info("connected to #{url}!")
       send(caller_pid, {:ws_connected, self()})
       {:noreply, state}
     else
       {:error, reason} ->
+        Logger.error("failed to connect, #{inspect(reason)}")
         {:reply, {:error, reason}, state}
 
       {:error, conn, reason} ->
+        Logger.error("failed to connect, #{inspect(conn)}, #{inspect(reason)}")
         {:reply, {:error, reason}, put_in(state.conn, conn)}
     end
   end
