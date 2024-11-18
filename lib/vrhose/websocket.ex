@@ -55,8 +55,12 @@ defmodule VRHose.Websocket do
 
   @impl GenServer
   def handle_call(:ping, _from, state) do
-    {:ok, state} = send_frame(state, {:ping, "ping!"})
-    {:reply, :ok, state}
+    with {:ok, state} <- send_frame(state, {:ping, "ping!"}) do
+      {:reply, :ok, state}
+    else
+      v ->
+        {:reply, {:error, v}, state}
+    end
   end
 
   @impl GenServer

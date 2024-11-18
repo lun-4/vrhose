@@ -84,6 +84,7 @@ defmodule VRHose.Ingestor do
         |> Enum.at(0)
         |> then(fn {_, pid, _, _} -> pid end)
 
+      Logger.warning("killing #{inspect(ws_pid)}.. ws should restart afterwards")
       :erlang.exit(ws_pid, :no_connection)
 
       {:noreply, put_in(state.pong, true)}
