@@ -142,11 +142,14 @@ defmodule VRHose.Ingestor do
     post_record = msg["commit"]["record"]
     # IO.puts("#{inspect(timestamp)} -> #{post_text}")
 
+    text = post_record["text"]
+
     post_data = %{
       timestamp: (timestamp |> DateTime.to_unix(:millisecond)) / 1000,
-      text: post_record["text"],
+      text: text,
       languages: (post_record["langs"] || []) |> Enum.at(0) || "",
-      author_handle: Map.get(state.handles, msg["did"]) || msg["did"]
+      author_handle: Map.get(state.handles, msg["did"]) || msg["did"],
+      hash: :erlang.phash2(text)
     }
 
     state.subscribers

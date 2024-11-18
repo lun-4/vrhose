@@ -56,7 +56,8 @@ defmodule VRHose.Timeliner do
               b: post.author_handle,
               c: post.text,
               d: post.timestamp,
-              l: post.languages
+              l: post.languages,
+              h: post.hash |> to_string
             }
           end)
       }}, state}
