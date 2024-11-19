@@ -93,7 +93,8 @@ defmodule VRHose.Websocket do
         query -> uri.path <> "?" <> query
       end
 
-    with {:ok, conn} <- Mint.HTTP1.connect(http_scheme, uri.host, uri.port),
+    with {:ok, conn} <-
+           Mint.HTTP1.connect(http_scheme, uri.host, uri.port, inet6: true, inet4: true),
          {:ok, conn, ref} <- Mint.WebSocket.upgrade(ws_scheme, conn, path, []) do
       state = %{state | conn: conn, request_ref: ref, caller: from, caller_pid: caller_pid}
       Logger.info("connected to #{url}!")
