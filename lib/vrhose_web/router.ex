@@ -9,6 +9,7 @@ defmodule VRHoseWeb.Router do
     pipe_through :api
 
     get "/hi", MainController, :hi
+    get "/s/:timestamp", MainController, :fetch_delta
   end
 
   # Enable LiveDashboard in development
