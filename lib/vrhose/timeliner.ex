@@ -55,7 +55,7 @@ defmodule VRHose.Timeliner do
         else
           posts
           |> Enum.filter(fn post ->
-            post.timestamp > timestamp
+            post.timestamp >= timestamp
           end)
         end
       end)
