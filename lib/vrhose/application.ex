@@ -39,7 +39,7 @@ defmodule VRHose.Application do
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: VRHose.Supervisor]
+    opts = [strategy: :one_for_one, name: VRHose.Supervisor, max_restarts: 10]
     Supervisor.start_link(children, opts)
   end
 
