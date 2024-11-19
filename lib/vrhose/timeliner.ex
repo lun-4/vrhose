@@ -49,10 +49,15 @@ defmodule VRHose.Timeliner do
   def handle_call({:fetch, timestamp}, _, state) do
     timeline =
       state.posts
-      |> Enum.filter(fn post ->
-        IO.inspect(post.timestamp)
-        IO.inspect(timestamp)
-        post.timestamp > timestamp
+      |> then(fn posts ->
+        if timestamp == 0 do
+          posts
+        else
+          posts
+          |> Enum.filter(fn post ->
+            post.timestamp > timestamp
+          end)
+        end
       end)
       |> Enum.map(fn post ->
         %{
