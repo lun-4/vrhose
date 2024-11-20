@@ -83,6 +83,7 @@ defmodule VRHose.Ingestor do
 
     if state.zero_counter > 20 do
       Logger.error("must restart")
+      kill_websocket(:zero_msgs)
     end
 
     Process.send_after(self(), :print_stats, 1000)
