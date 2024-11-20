@@ -42,7 +42,8 @@ defmodule VRHose.MixProject do
       {:certifi, "~> 2.13"},
       {:recon, "~> 2.3"},
       {:mint, "~> 1.0"},
-      {:mint_web_socket, "~> 1.0"}
+      {:mint_web_socket, "~> 1.0"},
+      {:ezstd, "~> 1.1"}
     ]
   end
 

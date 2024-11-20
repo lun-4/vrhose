@@ -24,6 +24,10 @@ defmodule VRHose.Ingestor do
     Process.send_after(self(), :print_stats, 1000)
     Process.send_after(self(), :ping_ws, 20000)
 
+    zstd_ctx = :ezstd.create_decompression_context(8192)
+    dd = :ezstd.create_ddict(File.read!(Path.join([:code.priv_dir(:vrhose), "/zstd_dictionary"])))
+    :ezstd.select_ddict(zstd_ctx, dd)
+
     {:ok,
      %{
        subscribers: [],
@@ -32,7 +36,8 @@ defmodule VRHose.Ingestor do
        message_counter: 0,
        zero_counter: 0,
        conn_pid: nil,
-       pong: true
+       pong: true,
+       zstd_ctx: zstd_ctx
      }, {:continue, :connect}}
   end
 
@@ -48,6 +53,19 @@ defmodule VRHose.Ingestor do
   @impl true
   def handle_call(:subscribe, {pid, _}, state) do
     {:reply, :ok, put_in(state.subscribers, state.subscribers ++ [pid])}
+  end
+
+  defp kill_websocket(reason) do
+    ws_pid =
+      Supervisor.which_children(VRHose.Supervisor)
+      |> Enum.filter(fn {name, _, _, _} ->
+        name == "websocket"
+      end)
+      |> Enum.at(0)
+      |> then(fn {_, pid, _, _} -> pid end)
+
+    Logger.warning("killing #{inspect(ws_pid)}.. ws should restart afterwards")
+    :erlang.exit(ws_pid, reason)
   end
 
   @impl true
@@ -102,17 +120,20 @@ defmodule VRHose.Ingestor do
     end
   end
 
-  defp kill_websocket(reason) do
-    ws_pid =
-      Supervisor.which_children(VRHose.Supervisor)
-      |> Enum.filter(fn {name, _, _, _} ->
-        name == "websocket"
-      end)
-      |> Enum.at(0)
-      |> then(fn {_, pid, _, _} -> pid end)
+  @impl true
+  def handle_info({:websocket_binary, timestamp, compressed}, state) do
+    decompressed = :ezstd.decompress_streaming(state.zstd_ctx, compressed)
 
-    Logger.warning("killing #{inspect(ws_pid)}.. ws should restart afterwards")
-    :erlang.exit(ws_pid, reason)
+    case decompressed do
+      {:error, v} ->
+        Logger.error("Decompression error: #{inspect(v)}")
+
+        {:noreply, state}
+
+      decompressed ->
+        send(self(), {:websocket_text, timestamp, decompressed})
+        {:noreply, state}
+    end
   end
 
   @impl true

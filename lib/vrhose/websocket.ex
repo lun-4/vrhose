@@ -210,6 +210,11 @@ defmodule VRHose.Websocket do
         send(state.caller_pid, {:websocket_text, timestamp, text})
         state
 
+      {:binary, text}, state ->
+        timestamp = DateTime.utc_now()
+        send(state.caller_pid, {:websocket_binary, timestamp, text})
+        state
+
       frame, state ->
         Logger.warning("Unexpected frame received: #{inspect(frame)}")
         state
