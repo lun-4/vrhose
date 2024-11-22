@@ -8,7 +8,8 @@ defmodule VRHose.Timeliner do
   end
 
   def fetch_all(pid) do
-    GenServer.call(pid, {:fetch, 0})
+    now = DateTime.utc_now() |> DateTime.to_unix(:second)
+    GenServer.call(pid, {:fetch, now - 30})
   end
 
   def fetch(pid, timestamp) do
@@ -28,37 +29,63 @@ defmodule VRHose.Timeliner do
       |> Keyword.get(:worker_id)
 
     :ok = VRHose.Ingestor.subscribe(register_with)
+    handle = VRHose.TimelinerStorage.create()
 
     {:ok,
      %{
        worker_id: worker_id,
-       posts: []
+       storage: handle
      }}
   end
 
+  @batch_limit 10000
+  @total_memory_limit 10000
+
   @impl true
   def handle_info({:post, post}, state) do
-    if Enum.count(state.posts) > 1000 do
-      {:noreply, put_in(state.posts, Enum.drop(state.posts, 1) ++ [post])}
+    VRHose.TimelinerStorage.insert_post(state.storage, post)
+
+    """
+    last_post = Enum.at(state.posts, -1)
+
+    delta =
+    if last_post != nil do
+      now = DateTime.utc_now() |> DateTime.to_unix(:second)
+      now - last_post.timestamp
     else
-      {:noreply, put_in(state.posts, state.posts ++ [post])}
+      0
     end
+
+    # TODO better eviction
+    posts =
+    if delta > 30 do
+      IO.puts("drop by delta")
+      Enum.drop(state.posts, 1)
+    else
+      overfill = Enum.count(state.posts) - @total_memory_limit
+
+      if overfill > 0 do
+        IO.puts("drop by overfill")
+        Enum.drop(state.posts, overfill)
+      else
+        state.posts
+      end
+    end
+
+    """
+
+    #    {:noreply, put_in(state.posts, posts ++ [post])}
+    {:noreply, state}
   end
 
   @impl true
   def handle_call({:fetch, timestamp}, _, state) do
     timeline =
       state.posts
-      |> then(fn posts ->
-        if timestamp == 0 do
-          posts
-        else
-          posts
-          |> Enum.filter(fn post ->
-            post.timestamp >= timestamp
-          end)
-        end
+      |> Enum.filter(fn post ->
+        post.timestamp >= timestamp
       end)
+      |> Enum.slice(0..@batch_limit)
       |> Enum.map(fn post ->
         %{
           t: "p",

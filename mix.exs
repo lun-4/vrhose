@@ -43,7 +43,8 @@ defmodule VRHose.MixProject do
       {:recon, "~> 2.3"},
       {:mint, "~> 1.0"},
       {:mint_web_socket, "~> 1.0"},
-      {:ezstd, "~> 1.1"}
+      {:ezstd, "~> 1.1"},
+      {:zigler, "~> 0.13.2", runtime: false}
     ]
   end
 

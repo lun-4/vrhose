@@ -9,6 +9,8 @@ defmodule VRHose.Application do
 
   @impl true
   def start(_type, _args) do
+    VRHose.TimelinerStorage.init(System.schedulers_online())
+
     children =
       [
         VRHoseWeb.Telemetry,
