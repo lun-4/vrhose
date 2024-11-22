@@ -2,6 +2,7 @@ const std = @import("std");
 const beam = @import("beam");
 
 const MAX_POST_BUFFER_SIZE = 1000;
+const MAX_POST_RETURN_SIZE = 10000;
 
 const Post = struct {
     timestamp: f64,
@@ -44,8 +45,7 @@ fn debug(comptime fmt: []const u8, args: anytype) void {
 }
 
 pub fn init(num_cores: usize) void {
-    std.debug.print("hi hi hi \n", .{});
-    debug("init the world", .{});
+    debug("initializing for given amount of cores: {d}", .{num_cores});
     mutex.lock();
     defer mutex.unlock();
     storages = beam.allocator.alloc(Storage, num_cores) catch @panic("out of memory for initialization");
@@ -65,12 +65,30 @@ pub fn create() usize {
 }
 
 pub fn insert_post(handle: usize, post: Post) void {
-    debug("insert!", .{});
+    //debug("insert!", .{});
     const storage = &storages[handle];
     if (storage.posts.readableLength() == MAX_POST_BUFFER_SIZE) storage.posts.discard(1);
-    debug(
-        "[{d}] {d}/{d}, timestamp={:.2}, textlen={d}, languages={s}, author_handle={s}, hash={}",
-        .{ handle, storage.posts.readableLength(), MAX_POST_BUFFER_SIZE, post.timestamp, post.text.len, post.languages, post.author_handle, post.hash },
-    );
+    //debug(
+    //    "[{d}] {d}/{d}, timestamp={:.2}, textlen={d}, languages={s}, author_handle={s}, hash={}",
+    //    .{ handle, storage.posts.readableLength(), MAX_POST_BUFFER_SIZE, post.timestamp, post.text.len, post.languages, post.author_handle, post.hash },
+    //);
     storage.posts.writeItem(post) catch @panic("must not be out of memory here");
+}
+
+pub fn fetch(handle: usize, timestamp: f64) ![]Post {
+    const storage = &storages[handle];
+    const all_posts = storage.posts.readableSlice(0);
+    var result = std.ArrayList(Post).init(beam.allocator);
+
+    try result.ensureTotalCapacity(MAX_POST_RETURN_SIZE);
+
+    for (all_posts) |post| {
+        if (post.timestamp >= timestamp) {
+            result.append(post) catch |err| switch (err) {
+                error.OutOfMemory => continue,
+                else => unreachable,
+            };
+        }
+    }
+    return result.toOwnedSlice();
 }

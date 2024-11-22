@@ -81,22 +81,20 @@ defmodule VRHose.Timeliner do
   @impl true
   def handle_call({:fetch, timestamp}, _, state) do
     timeline =
-      state.posts
-      |> Enum.filter(fn post ->
-        post.timestamp >= timestamp
-      end)
-      |> Enum.slice(0..@batch_limit)
+      VRHose.TimelinerStorage.fetch(state.storage, timestamp * 1.0)
+      |> IO.inspect(label: "timeliner storage result")
       |> Enum.map(fn post ->
         %{
           t: "p",
           a: "<TODO name resolution>",
           b: post.author_handle,
-          c: post.text,
+          c: post.text |> to_string,
           d: post.timestamp,
-          l: post.languages,
+          l: post.languages |> to_string,
           h: post.hash |> to_string
         }
       end)
+      |> IO.inspect(label: "result")
 
     {:reply,
      {:ok,
