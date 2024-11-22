@@ -10,6 +10,23 @@ const Post = struct {
     languages: []const u8,
     author_handle: []const u8,
     hash: i64,
+
+    const Self = @This();
+    pub fn copyVia(self: Self, allocator: std.mem.Allocator) !Post {
+        return Self{
+            .timestamp = self.timestamp,
+            .hash = self.hash,
+            .text = try allocator.dupe(u8, self.text),
+            .languages = try allocator.dupe(u8, self.languages),
+            .author_handle = try allocator.dupe(u8, self.author_handle),
+        };
+    }
+
+    pub fn deinitVia(self: Self, allocator: std.mem.Allocator) void {
+        allocator.free(self.text);
+        allocator.free(self.languages);
+        allocator.free(self.author_handle);
+    }
 };
 const PostFifo = std.fifo.LinearFifo(Post, .Slice);
 const Storage = struct {
@@ -67,12 +84,20 @@ pub fn create() usize {
 pub fn insert_post(handle: usize, post: Post) void {
     //debug("insert!", .{});
     const storage = &storages[handle];
-    if (storage.posts.readableLength() == MAX_POST_BUFFER_SIZE) storage.posts.discard(1);
-    //debug(
-    //    "[{d}] {d}/{d}, timestamp={:.2}, textlen={d}, languages={s}, author_handle={s}, hash={}",
-    //    .{ handle, storage.posts.readableLength(), MAX_POST_BUFFER_SIZE, post.timestamp, post.text.len, post.languages, post.author_handle, post.hash },
-    //);
-    storage.posts.writeItem(post) catch @panic("must not be out of memory here");
+    if (storage.posts.readableLength() == MAX_POST_BUFFER_SIZE) {
+        const all_posts = storage.posts.readableSlice(0);
+        const post_to_delete = all_posts[0];
+        post_to_delete.deinitVia(beam.allocator);
+        storage.posts.discard(1);
+    }
+    if (false) {
+        debug(
+            "[{d}] {d}/{d}, timestamp={:.2}, text={s}, languages={s}, author_handle={s}, hash={}",
+            .{ handle, storage.posts.readableLength(), MAX_POST_BUFFER_SIZE, post.timestamp, post.text, post.languages, post.author_handle, post.hash },
+        );
+    }
+    const owned_post = post.copyVia(beam.allocator) catch @panic("ran out of memory for string dupe");
+    storage.posts.writeItem(owned_post) catch @panic("must not be out of memory here");
 }
 
 pub fn fetch(handle: usize, timestamp: f64) ![]Post {
@@ -83,6 +108,7 @@ pub fn fetch(handle: usize, timestamp: f64) ![]Post {
     try result.ensureTotalCapacity(MAX_POST_RETURN_SIZE);
 
     for (all_posts) |post| {
+        debug("t= {s}", .{post.text});
         if (post.timestamp >= timestamp) {
             result.append(post) catch |err| switch (err) {
                 error.OutOfMemory => continue,
@@ -90,5 +116,6 @@ pub fn fetch(handle: usize, timestamp: f64) ![]Post {
             };
         }
     }
-    return result.toOwnedSlice();
+    const posts_result = result.toOwnedSlice();
+    return posts_result;
 }
