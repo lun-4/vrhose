@@ -1,8 +1,9 @@
 const std = @import("std");
+const ring = @import("ring_buffer.zig");
 const beam = @import("beam");
 
-const MAX_POST_BUFFER_SIZE = 1000;
-const MAX_POST_RETURN_SIZE = 10000;
+const MAX_POST_BUFFER_SIZE = 400;
+const MAX_POST_RETURN_SIZE = 100;
 
 const Post = struct {
     timestamp: f64,
@@ -28,21 +29,15 @@ const Post = struct {
         allocator.free(self.author_handle);
     }
 };
-const PostFifo = std.fifo.LinearFifo(Post, .Slice);
+const PostBuffer = ring.RingBuffer(Post);
 const Storage = struct {
-    posts: PostFifo,
+    posts: PostBuffer,
 
     const Self = @This();
     pub fn init() Self {
-        const post_buffer = beam.allocator.alloc(Post, MAX_POST_BUFFER_SIZE) catch @panic("out of memory for post buffer init");
         debug("init?", .{});
-        debug("init static post fifo", .{});
-        const fifo = PostFifo.init(post_buffer);
-        var self = Self{ .posts = fifo };
-        debug("ensure 1", .{});
-        self.posts.ensureTotalCapacity(MAX_POST_BUFFER_SIZE) catch @panic("misconfigured fifo");
-        debug("ensure 2", .{});
-        self.posts.ensureUnusedCapacity(MAX_POST_BUFFER_SIZE) catch @panic("logic bug");
+        const buf = PostBuffer.init(beam.allocator, MAX_POST_BUFFER_SIZE) catch @panic("out of memory for post buffer init");
+        const self = Self{ .posts = buf };
         return self;
     }
 };
@@ -84,31 +79,33 @@ pub fn create() usize {
 pub fn insert_post(handle: usize, post: Post) void {
     //debug("insert!", .{});
     const storage = &storages[handle];
-    if (storage.posts.readableLength() == MAX_POST_BUFFER_SIZE) {
-        const all_posts = storage.posts.readableSlice(0);
-        const post_to_delete = all_posts[0];
+    if (storage.posts.len == MAX_POST_BUFFER_SIZE) {
+        const post_to_delete = storage.posts.pop().?;
+        if (handle == 0) {
+            debug("popped {}", .{post_to_delete.timestamp});
+        }
         post_to_delete.deinitVia(beam.allocator);
-        storage.posts.discard(1);
     }
+    std.debug.assert(storage.posts.len <= MAX_POST_BUFFER_SIZE);
     if (false) {
         debug(
-            "[{d}] {d}/{d}, timestamp={:.2}, text={s}, languages={s}, author_handle={s}, hash={}",
+            "[{d}] {d}/{d}, timestamp={}, text={s}, languages={s}, author_handle={s}, hash={}",
             .{ handle, storage.posts.readableLength(), MAX_POST_BUFFER_SIZE, post.timestamp, post.text, post.languages, post.author_handle, post.hash },
         );
     }
     const owned_post = post.copyVia(beam.allocator) catch @panic("ran out of memory for string dupe");
-    storage.posts.writeItem(owned_post) catch @panic("must not be out of memory here");
+    storage.posts.push(owned_post) catch @panic("must not be out of memory here");
 }
 
 pub fn fetch(handle: usize, timestamp: f64) ![]Post {
     const storage = &storages[handle];
-    const all_posts = storage.posts.readableSlice(0);
-    var result = std.ArrayList(Post).init(beam.allocator);
 
+    var result = std.ArrayList(Post).init(beam.allocator);
     try result.ensureTotalCapacity(MAX_POST_RETURN_SIZE);
 
-    for (all_posts) |post| {
-        debug("t= {s}", .{post.text});
+    var it = storage.posts.iterator();
+    while (it.next()) |post| {
+        //       debug("t= {s}", .{post.text});
         if (post.timestamp >= timestamp) {
             result.append(post) catch |err| switch (err) {
                 error.OutOfMemory => continue,

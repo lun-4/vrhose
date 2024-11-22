@@ -82,7 +82,6 @@ defmodule VRHose.Timeliner do
   def handle_call({:fetch, timestamp}, _, state) do
     timeline =
       VRHose.TimelinerStorage.fetch(state.storage, timestamp * 1.0)
-      |> IO.inspect(label: "timeliner storage result")
       |> Enum.map(fn post ->
         %{
           t: "p",
@@ -94,7 +93,6 @@ defmodule VRHose.Timeliner do
           h: post.hash |> to_string
         }
       end)
-      |> IO.inspect(label: "result")
 
     {:reply,
      {:ok,
