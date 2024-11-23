@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
+import os
 import requests
 import time
 
-resp_initial = requests.get("http://localhost:4000/api/v1/hi")
+host = os.environ.get("HOST")
+host = host or "http://localhost:4000"
+
+resp_initial = requests.get(f"{host}/api/v1/hi")
 assert resp_initial.status_code == 200
 rjson = resp_initial.json()
 posts = rjson["batch"]
@@ -12,7 +16,7 @@ while True:
     post = posts[-1]
     post_timestamp = int(post["d"]) % 1000
     print("requesting at timestamp", post_timestamp)
-    resp_delta = requests.get(f"http://localhost:4000/api/v1/s/{post_timestamp}")
+    resp_delta = requests.get(f"{host}/api/v1/s/{post_timestamp}")
     djson = resp_delta.json()
     delta_posts = djson["batch"]
     if first:
