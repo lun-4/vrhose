@@ -20,4 +20,4 @@ while True:
         first = False
     print("got", len(delta_posts), "delta posts, sleeping...")
     posts = delta_posts
-    time.sleep(5)
+    time.sleep(2)
