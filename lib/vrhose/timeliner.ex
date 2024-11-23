@@ -97,7 +97,7 @@ defmodule VRHose.Timeliner do
     {:reply,
      {:ok,
       %{
-        time: DateTime.utc_now() |> DateTime.to_unix(),
+        time: System.os_time(:millisecond) / 1000,
         batch: timeline
       }}, state}
   end
