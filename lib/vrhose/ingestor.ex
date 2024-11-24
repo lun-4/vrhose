@@ -210,18 +210,87 @@ defmodule VRHose.Ingestor do
     end
   end
 
+  defp maybe_reply_flag(rec) do
+    if rec["reply"] != nil do
+      ["r"]
+    else
+      []
+    end
+  end
+
+  defp maybe_quote_flag(rec) do
+    unless Enum.empty?(
+             (rec["facets"] || [])
+             |> Enum.filter(fn facet ->
+               facet["features"]
+               |> Enum.filter(fn feature ->
+                 is_link = feature["$type"] == "app.bsky.richtext.facet#link"
+                 is_bsky = String.starts_with?(feature["uri"] || "", "https://bsky.app")
+                 is_link and is_bsky
+               end)
+               |> Enum.any?()
+             end)
+           ) do
+      ["q"]
+    else
+      []
+    end
+  end
+
+  defp maybe_mention_flag(rec) do
+    unless Enum.empty?(
+             (rec["facets"] || [])
+             |> Enum.filter(fn facet ->
+               facet["features"]
+               |> Enum.filter(fn feature ->
+                 is_mention = feature["$type"] == "app.bsky.richtext.facet#mention"
+                 has_did = feature["did"] != nil
+                 is_mention and has_did
+               end)
+               |> Enum.any?()
+             end)
+           ) do
+      ["m"]
+    else
+      []
+    end
+  end
+
+  @media_embed_types [
+    "app.bsky.embed.images",
+    "app.bsky.embed.video"
+  ]
+
+  defp maybe_media_flag(rec) do
+    maybe_embed = rec["embed"] || %{}
+    embed_type = maybe_embed["$type"]
+
+    if embed_type in @media_embed_types do
+      ["M"]
+    else
+      []
+    end
+  end
+
   defp fanout_post(state, timestamp, msg) do
     post_record = msg["commit"]["record"]
     # IO.puts("#{inspect(timestamp)} -> #{post_text}")
 
     text = post_record["text"]
 
+    post_flags =
+      maybe_reply_flag(post_record) ++
+        maybe_quote_flag(post_record) ++
+        maybe_mention_flag(post_record) ++
+        maybe_media_flag(post_record)
+
     post_data = %{
       timestamp: (timestamp |> DateTime.to_unix(:millisecond)) / 1000,
       text: text,
       languages: (post_record["langs"] || []) |> Enum.at(0) || "",
       author_handle: Map.get(state.handles, msg["did"]) || msg["did"],
-      hash: :erlang.phash2(text)
+      hash: :erlang.phash2(text),
+      flags: post_flags |> Enum.join("")
     }
 
     state.subscribers

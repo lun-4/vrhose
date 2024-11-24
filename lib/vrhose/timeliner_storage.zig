@@ -10,6 +10,7 @@ const Post = struct {
     text: []const u8,
     languages: []const u8,
     author_handle: []const u8,
+    flags: []const u8,
     hash: i64,
 
     const Self = @This();
@@ -20,6 +21,7 @@ const Post = struct {
             .text = try allocator.dupe(u8, self.text),
             .languages = try allocator.dupe(u8, self.languages),
             .author_handle = try allocator.dupe(u8, self.author_handle),
+            .flags = try allocator.dupe(u8, self.flags),
         };
     }
 
@@ -27,6 +29,7 @@ const Post = struct {
         allocator.free(self.text);
         allocator.free(self.languages);
         allocator.free(self.author_handle);
+        allocator.free(self.flags);
     }
 };
 const PostBuffer = ring.RingBuffer(Post);
@@ -143,6 +146,7 @@ test "it works" {
             .languages = "b",
             .author_handle = "c",
             .hash = @intCast(19327 + i),
+            .flags = "f",
         });
     }
     //const storage = &storages[handle];
@@ -155,6 +159,7 @@ test "it works" {
         .languages = "b",
         .author_handle = "c",
         .hash = @intCast(88567376),
+        .flags = "f",
     });
 
     const posts2 = try fetchA(allocator, handle, BASE_TIMESTAMP);
@@ -165,6 +170,7 @@ test "it works" {
         .languages = "b",
         .author_handle = "c",
         .hash = @intCast(88567376),
+        .flags = "f",
     });
     const posts3 = try fetchA(allocator, handle, BASE_TIMESTAMP + MAX_POST_BUFFER_SIZE);
     try std.testing.expectEqual(2, posts3.len);
