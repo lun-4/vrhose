@@ -5,7 +5,11 @@ defmodule VRHose.Application do
 
   use Application
 
-  @jetstream "wss://jetstream2.us-east.bsky.network/subscribe?wantedCollections=app.bsky.feed.post&compress=true"
+  @jetstream "wss://jetstream2.us-east.bsky.network/subscribe?wantedCollections=app.bsky.feed.post" <>
+               "&wantedCollections=app.bsky.feed.like" <>
+               "&wantedCollections=app.bsky.graph.follow" <>
+               "&wantedCollections=app.bsky.graph.block" <>
+               "&compress=true"
 
   @impl true
   def start(_type, _args) do

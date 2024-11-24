@@ -147,13 +147,24 @@ defmodule VRHose.Ingestor do
 
     case msg["kind"] do
       "commit" ->
-        case msg["commit"]["record"]["$type"] do
-          "app.bsky.feed.post" ->
-            fanout_post(state, timestamp, msg)
-            {:noreply, put_in(state.counter, state.counter + 1)}
+        case msg["commit"]["operation"] do
+          "create" ->
+            case msg["commit"]["record"]["$type"] do
+              "app.bsky.feed.post" ->
+                fanout_post(state, timestamp, msg)
+                {:noreply, put_in(state.counter, state.counter + 1)}
 
-          _ ->
-            # simply ignore non-posts lol
+              _ ->
+                # simply ignore non-posts lol
+                {:noreply, state}
+            end
+
+          "delete" ->
+            # TODO
+            {:noreply, state}
+
+          v ->
+            Logger.warning("Unsupported commit type: #{inspect(v)}")
             {:noreply, state}
         end
 

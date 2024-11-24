@@ -2,6 +2,10 @@ defmodule VRHose.Timeliner do
   use GenServer
   require Logger
 
+  defmodule Counters do
+    defstruct posts: 0, likes: 0, reposts: 0, follows: 0
+  end
+
   def start_link(opts \\ []) do
     IO.inspect(opts)
     GenServer.start_link(__MODULE__, opts, opts)
@@ -30,16 +34,33 @@ defmodule VRHose.Timeliner do
 
     :ok = VRHose.Ingestor.subscribe(register_with)
     handle = VRHose.TimelinerStorage.create()
+    # computers have at least 1 core... right?
+    if handle == 0 do
+      Process.send_after(self(), :print_stats, 1000)
+    end
 
     {:ok,
      %{
        worker_id: worker_id,
-       storage: handle
+       storage: handle,
+       counters: %__MODULE__.Counters{},
+       debug_counters: %__MODULE__.Counters{}
      }}
   end
 
   @batch_limit 10000
   @total_memory_limit 10000
+
+  @impl true
+  def handle_info(:print_stats, state) do
+    Process.send_after(self(), :print_stats, 1000)
+
+    Logger.info(
+      "posts: #{state.debug_counters.posts}, likes: #{state.debug_counters.likes}, reposts: #{state.debug_counters.reposts}, follows: #{state.debug_counters.follows}"
+    )
+
+    {:noreply, put_in(state.debug_counters, %__MODULE__.Counters{})}
+  end
 
   @impl true
   def handle_info({:post, post}, state) do
@@ -75,6 +96,10 @@ defmodule VRHose.Timeliner do
     """
 
     #    {:noreply, put_in(state.posts, posts ++ [post])}
+    # state = put_in(state.counters, %{state.counters | posts: state.posts + 1})
+    state =
+      put_in(state.debug_counters, %{state.debug_counters | posts: state.debug_counters.posts + 1})
+
     {:noreply, state}
   end
 
