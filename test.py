@@ -10,6 +10,7 @@ resp_initial = requests.get(f"{host}/api/v1/hi")
 assert resp_initial.status_code == 200
 rjson = resp_initial.json()
 posts = rjson["batch"]
+print(rjson["rates"])
 first = True
 while True:
     print("have", len(posts))
