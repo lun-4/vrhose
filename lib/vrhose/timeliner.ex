@@ -100,6 +100,7 @@ defmodule VRHose.Timeliner do
         :like -> :likes
         :follow -> :follows
         :block -> :blocks
+        :repost -> :reposts
       end
 
     state =

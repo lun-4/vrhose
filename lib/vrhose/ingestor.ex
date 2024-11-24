@@ -167,6 +167,10 @@ defmodule VRHose.Ingestor do
               "app.bsky.graph.block" ->
                 fanout(state, :block)
                 {:noreply, state}
+
+              "app.bsky.feed.repost" ->
+                fanout(state, :repost)
+                {:noreply, state}
             end
 
           "delete" ->

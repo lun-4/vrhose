@@ -9,6 +9,7 @@ defmodule VRHose.Application do
                "&wantedCollections=app.bsky.feed.like" <>
                "&wantedCollections=app.bsky.graph.follow" <>
                "&wantedCollections=app.bsky.graph.block" <>
+               "&wantedCollections=app.bsky.feed.repost" <>
                "&compress=true"
 
   @impl true
