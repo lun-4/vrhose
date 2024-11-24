@@ -94,7 +94,7 @@ defmodule VRHose.Timeliner do
   end
 
   @impl true
-  def handle_info(entity, state) when entity in [:like, :follow, :block] do
+  def handle_info(entity, state) when entity in [:like, :follow, :block, :repost] do
     key =
       case entity do
         :like -> :likes
