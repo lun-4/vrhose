@@ -94,6 +94,30 @@ defmodule VRHose.Timeliner do
   end
 
   @impl true
+  def handle_info(entity, state) when entity in [:like, :follow, :block] do
+    key =
+      case entity do
+        :like -> :likes
+        :follow -> :follows
+        :block -> :blocks
+      end
+
+    state =
+      put_in(
+        state.counters,
+        Map.put(state.counters, key, Map.get(state.counters, key) + 1)
+      )
+
+    state =
+      put_in(
+        state.debug_counters,
+        Map.put(state.debug_counters, key, Map.get(state.debug_counters, key) + 1)
+      )
+
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_call({:fetch, timestamp}, _, state) do
     timeline =
       VRHose.TimelinerStorage.fetch(state.storage, timestamp * 1.0)

@@ -152,10 +152,20 @@ defmodule VRHose.Ingestor do
             case msg["commit"]["record"]["$type"] do
               "app.bsky.feed.post" ->
                 fanout_post(state, timestamp, msg)
-                {:noreply, put_in(state.counter, state.counter + 1)}
+                {:noreply, state}
 
-              _ ->
-                # simply ignore non-posts lol
+              # TODO reposts
+
+              "app.bsky.feed.like" ->
+                fanout(state, :like)
+                {:noreply, state}
+
+              "app.bsky.graph.follow" ->
+                fanout(state, :follow)
+                {:noreply, state}
+
+              "app.bsky.graph.block" ->
+                fanout(state, :block)
                 {:noreply, state}
             end
 
@@ -216,6 +226,13 @@ defmodule VRHose.Ingestor do
         pid,
         {:post, post_data}
       )
+    end)
+  end
+
+  defp fanout(state, anything) do
+    state.subscribers
+    |> Enum.each(fn pid ->
+      send(pid, anything)
     end)
   end
 
