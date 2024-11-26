@@ -154,8 +154,6 @@ defmodule VRHose.Ingestor do
                 fanout_post(state, timestamp, msg)
                 {:noreply, state}
 
-              # TODO reposts
-
               "app.bsky.feed.like" ->
                 fanout(state, :like)
                 {:noreply, state}
