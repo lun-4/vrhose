@@ -20,6 +20,9 @@ if System.get_env("PHX_SERVER") do
   config :vrhose, VRHoseWeb.Endpoint, server: true
 end
 
+config :vrhose, :atproto,
+  did_plc_endpoint: System.get_env("ATPROTO_PLC_URL") || "https://plc.directory"
+
 if config_env() == :prod do
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you

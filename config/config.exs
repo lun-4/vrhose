@@ -11,6 +11,11 @@ config :vrhose,
   namespace: VRHose,
   generators: [timestamp_type: :utc_datetime]
 
+config :vrhose,
+  ecto_repos: [VRHose.Repo]
+
+config :vrhose, VRHose.Repo, database: "vrhose_#{Mix.env()}.db"
+
 # Configures the endpoint
 config :vrhose, VRHoseWeb.Endpoint,
   url: [host: "localhost"],
@@ -29,6 +34,8 @@ config :logger, :console,
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
+
+config :vrhose, :atproto, did_plc_endpoint: "https://plc.directory"
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

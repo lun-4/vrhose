@@ -28,3 +28,4 @@ vrhose-*.tar
 # zigler
 .Elixir*.zig
 priv/lib
+*.db*

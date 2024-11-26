@@ -9,6 +9,7 @@ const Post = struct {
     timestamp: f64,
     text: []const u8,
     languages: []const u8,
+    author_name: []const u8,
     author_handle: []const u8,
     flags: []const u8,
     hash: i64,
@@ -20,6 +21,7 @@ const Post = struct {
             .hash = self.hash,
             .text = try allocator.dupe(u8, self.text),
             .languages = try allocator.dupe(u8, self.languages),
+            .author_name = try allocator.dupe(u8, self.author_name),
             .author_handle = try allocator.dupe(u8, self.author_handle),
             .flags = try allocator.dupe(u8, self.flags),
         };
@@ -28,6 +30,7 @@ const Post = struct {
     pub fn deinitVia(self: Self, allocator: std.mem.Allocator) void {
         allocator.free(self.text);
         allocator.free(self.languages);
+        allocator.free(self.author_name);
         allocator.free(self.author_handle);
         allocator.free(self.flags);
     }
@@ -144,6 +147,7 @@ test "it works" {
             .timestamp = @floatFromInt(BASE_TIMESTAMP + i),
             .text = "a",
             .languages = "b",
+            .author_name = "c",
             .author_handle = "c",
             .hash = @intCast(19327 + i),
             .flags = "f",
@@ -157,6 +161,7 @@ test "it works" {
         .timestamp = @floatFromInt(BASE_TIMESTAMP + MAX_POST_BUFFER_SIZE + 1),
         .text = "a",
         .languages = "b",
+        .author_name = "c",
         .author_handle = "c",
         .hash = @intCast(88567376),
         .flags = "f",
@@ -168,6 +173,7 @@ test "it works" {
         .timestamp = @floatFromInt(BASE_TIMESTAMP + MAX_POST_BUFFER_SIZE + 2),
         .text = "a",
         .languages = "b",
+        .author_name = "c",
         .author_handle = "c",
         .hash = @intCast(88567376),
         .flags = "f",

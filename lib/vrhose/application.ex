@@ -18,7 +18,13 @@ defmodule VRHose.Application do
 
     children =
       [
+        VRHose.Repo,
         VRHoseWeb.Telemetry,
+        {Finch,
+         name: VRHose.Finch,
+         pools: %{
+           :default => [size: 50, count: 50]
+         }},
         {DNSCluster, query: Application.get_env(:vrhose, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: VRHose.PubSub},
         # Start a worker by calling: VRHose.Worker.start_link(arg)
@@ -29,6 +35,12 @@ defmodule VRHose.Application do
           # , partitions: System.schedulers_online()},
           keys: :duplicate, name: Registry.Timeliners
         },
+        {VRHose.Hydrator.Producer, name: {:global, VRHose.Hydrator.Producer}},
+        {VRHose.Hydrator.Worker,
+         [
+           worker_id: "worker_1",
+           subscribe_to: {:global, VRHose.Hydrator.Producer}
+         ]},
         {VRHose.Ingestor, name: {:global, VRHose.Ingestor}},
         %{
           start:

@@ -286,18 +286,13 @@ defmodule VRHose.Ingestor do
       timestamp: (timestamp |> DateTime.to_unix(:millisecond)) / 1000,
       text: text,
       languages: (post_record["langs"] || []) |> Enum.at(0) || "",
+      author_name: "<...processing...>",
       author_handle: Map.get(state.handles, msg["did"]) || msg["did"],
       hash: :erlang.phash2(text),
       flags: post_flags |> Enum.join("")
     }
 
-    state.subscribers
-    |> Enum.each(fn pid ->
-      send(
-        pid,
-        {:post, post_data}
-      )
-    end)
+    VRHose.Hydrator.Producer.submit({msg["did"], post_data, state.subscribers})
   end
 
   defp fanout(state, anything) do

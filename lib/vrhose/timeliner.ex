@@ -125,7 +125,7 @@ defmodule VRHose.Timeliner do
       |> Enum.map(fn post ->
         %{
           t: "p",
-          a: "<TODO name resolution>",
+          a: post.author_name,
           b: post.author_handle,
           c: post.text |> to_string,
           d: post.timestamp,

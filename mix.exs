@@ -34,6 +34,9 @@ defmodule VRHose.MixProject do
     [
       {:phoenix, "~> 1.7.14"},
       {:phoenix_live_dashboard, "~> 0.8.3"},
+      {:phoenix_ecto, "~> 4.4"},
+      {:ecto_sql, "~> 3.10"},
+      {:ecto_sqlite3, ">= 0.0.0"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:dns_cluster, "~> 0.1.1"},
@@ -44,7 +47,10 @@ defmodule VRHose.MixProject do
       {:mint, "~> 1.0"},
       {:mint_web_socket, "~> 1.0"},
       {:ezstd, "~> 1.1"},
-      {:zigler, "~> 0.13.2", runtime: false}
+      {:zigler, "~> 0.13.2", runtime: false},
+      {:gen_stage, "~> 1.0"},
+      {:req, "~> 0.5.0"},
+      {:xrpc, git: "https://github.com/moomerman/xrpc", branch: "main"}
     ]
   end
 
