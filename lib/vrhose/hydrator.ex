@@ -31,9 +31,14 @@ defmodule VRHose.Hydrator do
       {:noreply, items, new_queue}
     end
 
-    defp take_from_queue(queue, 0, items), do: {Enum.reverse(items), queue}
+    defp take_from_queue(queue, 0, items) do
+      # IO.inspect("0 items: #{inspect(items)}")
+      {Enum.reverse(items), queue}
+    end
 
     defp take_from_queue(queue, demand, items) do
+      # IO.inspect("demand: #{demand} items: #{inspect(items)}")
+
       case :queue.out(queue) do
         {{:value, item}, new_queue} ->
           take_from_queue(new_queue, demand - 1, [item | items])
@@ -45,26 +50,28 @@ defmodule VRHose.Hydrator do
   end
 
   defmodule Worker do
+    require Logger
     use GenStage
 
     def start_link(_opts) do
-      GenStage.start_link(__MODULE__, :ok, name: __MODULE__)
+      GenStage.start_link(__MODULE__, :ok)
     end
 
     def init(:ok) do
       # Subscribe to producer with max_demand of 10
       # min_demand will be 5 (half of max_demand by default)
-      {:consumer, :ok, subscribe_to: [{VRHose.Hydrator.Producer, max_demand: 30}]}
+      {:consumer, :ok, subscribe_to: [{VRHose.Hydrator.Producer, max_demand: 2, min_demand: 1}]}
     end
 
     def handle_events(events, _from, state) do
-      # Process events in parallel using Task.async_stream
+      # Logger.info("Hydrating: #{length(events)}")
+
       Task.async_stream(
         events,
         fn event ->
           process(event)
         end,
-        max_concurrency: 10
+        max_concurrency: 1
       )
       |> Stream.run()
 
@@ -102,6 +109,25 @@ defmodule VRHose.Hydrator do
     end
 
     defp process_without_cache({did, post_data, _}) do
+      {:ok, resp} =
+        Req.get("https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=#{did}")
+
+      aka = resp.body["handle"]
+
+      display_name =
+        case resp.body["displayName"] do
+          nil -> "<unknown>"
+          "" -> aka
+          v -> v
+        end
+
+      {:ok, identity} = VRHose.Identity.insert(did, aka || did, "nil", display_name)
+
+      post_data
+      |> hydrate_with(identity)
+    end
+
+    defp process_without_cache_old({did, post_data, _}) do
       plc_url = Application.fetch_env!(:vrhose, :atproto)[:did_plc_endpoint]
       {:ok, resp} = Req.get("#{plc_url}/#{did}", finch: VRHose.Finch)
       rbody = Jason.decode!(resp.body)

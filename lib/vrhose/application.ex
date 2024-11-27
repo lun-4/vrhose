@@ -36,11 +36,6 @@ defmodule VRHose.Application do
           keys: :duplicate, name: Registry.Timeliners
         },
         {VRHose.Hydrator.Producer, name: {:global, VRHose.Hydrator.Producer}},
-        {VRHose.Hydrator.Worker,
-         [
-           worker_id: "worker_1",
-           subscribe_to: {:global, VRHose.Hydrator.Producer}
-         ]},
         {VRHose.Ingestor, name: {:global, VRHose.Ingestor}},
         %{
           start:
@@ -54,12 +49,31 @@ defmodule VRHose.Application do
           id: "websocket"
         },
         VRHoseWeb.Endpoint
-      ] ++ workers()
+      ] ++ workers() ++ hydration_workers()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: VRHose.Supervisor, max_restarts: 10]
     Supervisor.start_link(children, opts)
+  end
+
+  def hydration_workers() do
+    1..200
+    |> Enum.map(fn i ->
+      %{
+        id: "worker_#{i}",
+        start: {
+          VRHose.Hydrator.Worker,
+          :start_link,
+          [
+            [
+              worker_id: "worker_#{i}",
+              subscribe_to: {:global, VRHose.Hydrator.Producer}
+            ]
+          ]
+        }
+      }
+    end)
   end
 
   def workers() do
