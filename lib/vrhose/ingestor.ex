@@ -288,7 +288,7 @@ defmodule VRHose.Ingestor do
       languages: (post_record["langs"] || []) |> Enum.at(0) || "",
       author_name: "<...processing...>",
       author_handle: Map.get(state.handles, msg["did"]) || msg["did"],
-      hash: :erlang.phash2(text),
+      hash: :erlang.phash2(text <> msg["did"]),
       flags: post_flags |> Enum.join("")
     }
 
