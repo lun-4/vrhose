@@ -25,6 +25,15 @@ defmodule VRHose.Identity do
     Repo.one(query, log: false)
   end
 
+  def fake(did) do
+    %__MODULE__{
+      did: did,
+      also_known_as: did,
+      atproto_pds_endpoint: "no",
+      name: did
+    }
+  end
+
   def insert(did, aka, atproto_pds_endpoint, name) do
     %__MODULE__{}
     |> changeset(%{

@@ -56,22 +56,28 @@ defmodule VRHose.Hydrator do
   end
 
   defp process_without_cache({did, post_data, _}) do
-    {:ok, resp} =
-      Req.get("https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=#{did}")
+    case Req.get("https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=#{did}") do
+      {:ok, resp} ->
+        aka = resp.body["handle"]
 
-    aka = resp.body["handle"]
+        display_name =
+          case resp.body["displayName"] do
+            nil -> "<unknown>"
+            "" -> aka || did
+            v -> v
+          end
 
-    display_name =
-      case resp.body["displayName"] do
-        nil -> "<unknown>"
-        "" -> aka
-        v -> v
-      end
+        {:ok, identity} = VRHose.Identity.insert(did, aka || did, "nil", display_name)
 
-    {:ok, identity} = VRHose.Identity.insert(did, aka || did, "nil", display_name)
+        post_data
+        |> hydrate_with(identity)
 
-    post_data
-    |> hydrate_with(identity)
+      {:error, v} ->
+        Logger.error("Error fetching profile for did #{did}: #{inspect(v)}")
+
+        post_data
+        |> hydrate_with(VRHose.Identity.fake(did))
+    end
   end
 
   defp process_without_cache_old({did, post_data, _}) do
