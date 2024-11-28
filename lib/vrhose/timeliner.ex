@@ -36,6 +36,8 @@ defmodule VRHose.Timeliner do
       opts
       |> Keyword.get(:worker_id)
 
+    ingestor_pid = GenServer.whereis(register_with)
+    monitor_ref = Process.monitor(ingestor_pid)
     :ok = VRHose.Ingestor.subscribe(register_with)
     handle = VRHose.TimelinerStorage.create()
 
@@ -48,13 +50,25 @@ defmodule VRHose.Timeliner do
 
     {:ok,
      %{
+       registered_with: register_with,
        worker_id: worker_id,
        storage: handle,
        debug_counters: %__MODULE__.Counters{},
        start_time: System.os_time(:second),
        counters: %__MODULE__.Counters{},
-       rates: nil
+       rates: nil,
+       monitor_ref: monitor_ref
      }}
+  end
+
+  @impl true
+  def handle_continue(:reconnect, state) do
+    register_with = state.registered_with
+    Logger.info("#{state.worker_id}: reconnecting to #{inspect(register_with)}")
+    ingestor_pid = GenServer.whereis(register_with)
+    monitor_ref = Process.monitor(ingestor_pid)
+    :ok = VRHose.Ingestor.subscribe(register_with)
+    {:noreply, put_in(state.monitor_ref, monitor_ref)}
   end
 
   @impl true
@@ -115,6 +129,28 @@ defmodule VRHose.Timeliner do
         Map.put(state.debug_counters, key, Map.get(state.debug_counters, key) + 1)
       )
 
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:DOWN, down_ref, :process, _pid, reason}, state) do
+    if state.monitor_ref == down_ref do
+      Logger.warning("ingestor process died, reason: #{inspect(reason)}")
+      Logger.warning("waiting 1 second then reconnecting...")
+      Process.sleep(1000)
+      {:noreply, state, {:continue, :reconnect}}
+    else
+      Logger.warning(
+        "received unknown ref #{inspect(down_ref)}, expected #{inspect(state.monitor_ref)}"
+      )
+
+      {:noreply, state}
+    end
+  end
+
+  @impl true
+  def handle_info(unhandled_message, state) do
+    Logger.warning("timeliner received unhandled message: #{inspect(unhandled_message)}")
     {:noreply, state}
   end
 
