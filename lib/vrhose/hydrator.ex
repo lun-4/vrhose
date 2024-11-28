@@ -58,14 +58,15 @@ defmodule VRHose.Hydrator do
   defp process_without_cache({did, post_data, _}) do
     case Req.get("https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=#{did}") do
       {:ok, resp} ->
-        aka = resp.body["handle"]
+        aka = resp.body["handle"] || did
 
         display_name =
-          case resp.body["displayName"] do
-            nil -> aka || did
-            "" -> aka || did
-            v -> v |> String.trim()
-          end
+          (resp.body["displayName"] || aka)
+          |> String.trim()
+          |> then(fn
+            "" -> aka
+            v -> v
+          end)
 
         {:ok, identity} = VRHose.Identity.insert(did, aka || did, "nil", display_name)
 
