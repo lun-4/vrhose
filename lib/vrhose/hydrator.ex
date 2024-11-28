@@ -61,7 +61,7 @@ defmodule VRHose.Hydrator do
         aka = resp.body["handle"]
 
         display_name =
-          case resp.body["displayName"] do
+          case resp.body["displayName"] |> String.trim() do
             nil -> "<unknown>"
             "" -> aka || did
             v -> v
