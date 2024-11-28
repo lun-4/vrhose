@@ -61,10 +61,10 @@ defmodule VRHose.Hydrator do
         aka = resp.body["handle"]
 
         display_name =
-          case resp.body["displayName"] |> String.trim() do
+          case resp.body["displayName"] do
             nil -> "<unknown>"
             "" -> aka || did
-            v -> v
+            v -> v |> String.trim()
           end
 
         {:ok, identity} = VRHose.Identity.insert(did, aka || did, "nil", display_name)
