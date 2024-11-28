@@ -27,29 +27,29 @@ defmodule VRHose.Application do
          }},
         {DNSCluster, query: Application.get_env(:vrhose, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: VRHose.PubSub},
-        # Start a worker by calling: VRHose.Worker.start_link(arg)
-        # {VRHose.Worker, arg},
-        # Start to serve requests, typically the last entry
         {
           Registry,
           # , partitions: System.schedulers_online()},
           keys: :duplicate, name: Registry.Timeliners
         },
-        {VRHose.Hydrator.Producer, name: {:global, VRHose.Hydrator.Producer}},
-        {VRHose.Ingestor, name: {:global, VRHose.Ingestor}},
-        %{
-          start:
-            {VRHose.Websocket, :start_and_connect,
-             [
+        {ExHashRing.Ring, name: VRHose.Hydrator.Ring}
+      ] ++
+        hydration_workers() ++
+        [
+          {VRHose.Ingestor, name: {:global, VRHose.Ingestor}},
+          %{
+            start:
+              {VRHose.Websocket, :start_and_connect,
                [
-                 url: @jetstream,
-                 send_to: VRHose.Ingestor
-               ]
-             ]},
-          id: "websocket"
-        },
-        VRHoseWeb.Endpoint
-      ] ++ workers() ++ hydration_workers()
+                 [
+                   url: @jetstream,
+                   send_to: VRHose.Ingestor
+                 ]
+               ]},
+            id: "websocket"
+          },
+          VRHoseWeb.Endpoint
+        ] ++ timeliner_workers()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -58,17 +58,16 @@ defmodule VRHose.Application do
   end
 
   def hydration_workers() do
-    1..200
+    1..20
     |> Enum.map(fn i ->
       %{
         id: "worker_#{i}",
         start: {
-          VRHose.Hydrator.Worker,
+          VRHose.Hydrator,
           :start_link,
           [
             [
-              worker_id: "worker_#{i}",
-              subscribe_to: {:global, VRHose.Hydrator.Producer}
+              worker_id: "worker_#{i}"
             ]
           ]
         }
@@ -76,7 +75,7 @@ defmodule VRHose.Application do
     end)
   end
 
-  def workers() do
+  def timeliner_workers() do
     1..System.schedulers_online()
     |> Enum.map(fn i ->
       worker_id = "timeliner_#{i}"

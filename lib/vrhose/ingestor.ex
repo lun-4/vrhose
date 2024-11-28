@@ -292,7 +292,9 @@ defmodule VRHose.Ingestor do
       flags: post_flags |> Enum.join("")
     }
 
-    VRHose.Hydrator.Producer.submit({msg["did"], post_data, state.subscribers})
+    {:ok, worker} = ExHashRing.Ring.find_node(VRHose.Hydrator.Ring, msg["did"])
+    worker_pid = worker |> to_charlist() |> :erlang.list_to_pid()
+    VRHose.Hydrator.submit_post(worker_pid, {msg["did"], post_data, state.subscribers})
   end
 
   defp fanout(state, anything) do

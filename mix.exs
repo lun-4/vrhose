@@ -50,7 +50,8 @@ defmodule VRHose.MixProject do
       {:zigler, "~> 0.13.2", runtime: false},
       {:gen_stage, "~> 1.0"},
       {:req, "~> 0.5.0"},
-      {:xrpc, git: "https://github.com/moomerman/xrpc", branch: "main"}
+      {:xrpc, git: "https://github.com/moomerman/xrpc", branch: "main"},
+      {:ex_hash_ring, "~> 6.0"}
     ]
   end
 
