@@ -117,6 +117,7 @@ defmodule VRHose.Application do
 
     VRHoseWeb.Endpoint.MetricsExporter.setup()
     VRHoseWeb.Endpoint.PipelineInstrumenter.setup()
+    VRHose.Ingestor.Metrics.setup()
 
     # Note: disabled until prometheus-phx is integrated into prometheus-phoenix:
     # YtSearchWeb.Endpoint.Instrumenter.setup()

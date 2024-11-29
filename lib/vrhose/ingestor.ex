@@ -16,6 +16,39 @@ defmodule VRHose.Ingestor do
     GenServer.call(ingestor, :subscribe)
   end
 
+  defmodule Metrics do
+    use Prometheus.Metric
+
+    def setup() do
+      Counter.declare(
+        name: :vrhose_firehose_event_count,
+        help: "fire hose...... wrow",
+        labels: [:kind, :operation, :type]
+      )
+    end
+
+    def commit(operation, type) do
+      Counter.inc(
+        name: :vrhose_firehose_event_count,
+        labels: ["commit", to_string(operation), to_string(type)]
+      )
+    end
+
+    def identity() do
+      Counter.inc(
+        name: :vrhose_firehose_event_count,
+        labels: ["identity", "<unk>", "<unk>"]
+      )
+    end
+
+    def account(active, status) do
+      Counter.inc(
+        name: :vrhose_firehose_event_count,
+        labels: ["account", active, status]
+      )
+    end
+  end
+
   # Server Callbacks
 
   @impl true
@@ -149,7 +182,10 @@ defmodule VRHose.Ingestor do
       "commit" ->
         case msg["commit"]["operation"] do
           "create" ->
-            case msg["commit"]["record"]["$type"] do
+            event_type = msg["commit"]["record"]["$type"]
+            __MODULE__.Metrics.commit(:create, event_type)
+
+            case event_type do
               "app.bsky.feed.post" ->
                 fanout_post(state, timestamp, msg)
                 {:noreply, state}
@@ -172,21 +208,43 @@ defmodule VRHose.Ingestor do
             end
 
           "delete" ->
-            # TODO
+            event_type = msg["commit"]["collection"]
+            __MODULE__.Metrics.commit(:delete, event_type)
+            {:noreply, state}
+
+          "update" ->
+            event_type = msg["commit"]["record"]["$type"]
+            __MODULE__.Metrics.commit(:update, event_type)
             {:noreply, state}
 
           v ->
-            Logger.warning("Unsupported commit type: #{inspect(v)}")
+            Logger.warning("Unsupported commit type: #{inspect(v)} from #{inspect(msg)}")
             {:noreply, state}
         end
 
       "identity" ->
+        __MODULE__.Metrics.identity()
         did = msg["identity"]["did"]
         handle = msg["identity"]["handle"]
         {:noreply, put_in(state.handles, Map.put(state.handles, did, handle))}
 
-      _ ->
-        # simply ignore non-commits lol
+      "account" ->
+        active? = msg["account"]["active"]
+        status = msg["account"]["status"]
+
+        __MODULE__.Metrics.account(
+          if active? do
+            "active"
+          else
+            "inactive"
+          end,
+          status
+        )
+
+        {:noreply, state}
+
+      v ->
+        Logger.warning("Unsupported message from jetstream: #{inspect(v)}: #{inspect(msg)}")
         {:noreply, state}
     end
   end

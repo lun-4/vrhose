@@ -10,6 +10,39 @@ defmodule VRHose.Timeliner do
               blocks: 0
   end
 
+  defmodule Metrics do
+    use Prometheus.Metric
+
+    def setup() do
+      Histogram.declare(
+        name: :vrhose_timeliner_events,
+        help: "sent posts from timeliner processes to users",
+        labels: [:call_type],
+        buckets:
+          [
+            10..100//10,
+            100..1000//100,
+            1000..2000//100,
+            2000..4000//500,
+            4000..10000//1000,
+            10000..20000//1500
+          ]
+          |> Enum.flat_map(&Enum.to_list/1)
+          |> Enum.uniq()
+      )
+    end
+
+    def sent_events(call_type, amount) do
+      Histogram.observe(
+        [
+          name: :vrhose_timeliner_events,
+          labels: [call_type]
+        ],
+        amount
+      )
+    end
+  end
+
   def start_link(opts \\ []) do
     IO.inspect(opts)
     GenServer.start_link(__MODULE__, opts, opts)
