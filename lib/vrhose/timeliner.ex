@@ -139,14 +139,18 @@ defmodule VRHose.Timeliner do
         put_in(state.world_ids, %{
           time: System.os_time(:millisecond) / 1000,
           ids:
-            if length(state.world_ids.ids) > 10 do
-              state.world_ids.ids
-              # pop oldest
-              |> Enum.drop(-1)
-              # insert into earliest
-              |> List.insert_at(0, post.world_id)
+            unless Enum.member?(state.world_ids.ids, post.world_id) do
+              if length(state.world_ids.ids) > 10 do
+                state.world_ids.ids
+                # pop oldest
+                |> Enum.drop(-1)
+                # insert into earliest
+                |> List.insert_at(0, post.world_id)
+              else
+                [post.world_id | state.world_ids.ids]
+              end
             else
-              [post.world_id | state.world_ids.ids]
+              state.world_ids.ids
             end
         })
       else
