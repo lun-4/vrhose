@@ -379,6 +379,7 @@ defmodule VRHose.Ingestor do
 
         v ->
           v
+          |> Enum.at(0)
       end)
     end
   end
