@@ -10,6 +10,20 @@ defmodule VRHose.Timeliner do
               blocks: 0
   end
 
+  def start_link(opts \\ []) do
+    IO.inspect(opts)
+    GenServer.start_link(__MODULE__, opts, opts)
+  end
+
+  def fetch_all(pid) do
+    now = DateTime.utc_now() |> DateTime.to_unix(:second)
+    GenServer.call(pid, {:fetch, now - 30, false})
+  end
+
+  def fetch(pid, timestamp) do
+    GenServer.call(pid, {:fetch, timestamp, true})
+  end
+
   defmodule Metrics do
     use Prometheus.Metric
 
@@ -25,7 +39,8 @@ defmodule VRHose.Timeliner do
             1000..2000//100,
             2000..4000//500,
             4000..10000//1000,
-            10000..20000//1500
+            10000..20000//1500,
+            20000..40000//2000
           ]
           |> Enum.flat_map(&Enum.to_list/1)
           |> Enum.uniq()
@@ -41,20 +56,6 @@ defmodule VRHose.Timeliner do
         amount
       )
     end
-  end
-
-  def start_link(opts \\ []) do
-    IO.inspect(opts)
-    GenServer.start_link(__MODULE__, opts, opts)
-  end
-
-  def fetch_all(pid) do
-    now = DateTime.utc_now() |> DateTime.to_unix(:second)
-    GenServer.call(pid, {:fetch, now - 30})
-  end
-
-  def fetch(pid, timestamp) do
-    GenServer.call(pid, {:fetch, timestamp})
   end
 
   @impl true
@@ -188,7 +189,7 @@ defmodule VRHose.Timeliner do
   end
 
   @impl true
-  def handle_call({:fetch, timestamp}, _, state) do
+  def handle_call({:fetch, timestamp, is_delta?}, _, state) do
     timeline =
       VRHose.TimelinerStorage.fetch(state.storage, timestamp * 1.0)
       |> Enum.map(fn post ->
@@ -203,6 +204,17 @@ defmodule VRHose.Timeliner do
           f: post.flags |> to_string
         }
       end)
+
+    timeline_length = length(timeline)
+
+    __MODULE__.Metrics.sent_events(
+      if is_delta? do
+        "delta"
+      else
+        "init"
+      end,
+      timeline_length
+    )
 
     {:reply,
      {:ok,
