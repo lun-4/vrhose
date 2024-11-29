@@ -4,6 +4,7 @@ defmodule VRHose.Application do
   @moduledoc false
 
   use Application
+  require Logger
 
   @jetstream "wss://jetstream2.us-east.bsky.network/subscribe?wantedCollections=app.bsky.feed.post" <>
                "&wantedCollections=app.bsky.feed.like" <>
@@ -51,6 +52,8 @@ defmodule VRHose.Application do
           VRHoseWeb.Endpoint
         ] ++ timeliner_workers()
 
+    start_telemetry()
+
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: VRHose.Supervisor, max_restarts: 10]
@@ -93,6 +96,32 @@ defmodule VRHose.Application do
         id: worker_id |> String.to_atom()
       }
     end)
+  end
+
+  defp start_telemetry do
+    require Prometheus.Registry
+
+    if Application.get_env(:prometheus, VRHose.Repo.Instrumenter) do
+      Logger.info("starting db telemetry...")
+
+      :ok =
+        :telemetry.attach(
+          "prometheus-ecto",
+          [:vrhose, :repo, :query],
+          &VRHose.Repo.Instrumenter.handle_event/4,
+          %{}
+        )
+
+      VRHose.Repo.Instrumenter.setup()
+    end
+
+    VRHoseWeb.Endpoint.MetricsExporter.setup()
+    VRHoseWeb.Endpoint.PipelineInstrumenter.setup()
+
+    # Note: disabled until prometheus-phx is integrated into prometheus-phoenix:
+    # YtSearchWeb.Endpoint.Instrumenter.setup()
+    PrometheusPhx.setup()
+    Logger.info("telemetry started!")
   end
 
   # Tell Phoenix to update the endpoint configuration

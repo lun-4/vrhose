@@ -51,7 +51,19 @@ defmodule VRHose.MixProject do
       {:gen_stage, "~> 1.0"},
       {:req, "~> 0.5.0"},
       {:xrpc, git: "https://github.com/moomerman/xrpc", branch: "main"},
-      {:ex_hash_ring, "~> 6.0"}
+      {:ex_hash_ring, "~> 6.0"},
+      {:prometheus, "~> 4.6"},
+      {:prometheus_ex,
+       git: "https://github.com/lanodan/prometheus.ex.git",
+       branch: "fix/elixir-1.14",
+       override: true},
+      {:prometheus_plugs, "~> 1.1"},
+      {:prometheus_phoenix, "~> 1.3"},
+      # Note: once `prometheus_phx` is integrated into `prometheus_phoenix`, remove the former:
+      {:prometheus_phx,
+       git: "https://git.pleroma.social/pleroma/elixir-libraries/prometheus-phx.git",
+       branch: "no-logging"},
+      {:prometheus_ecto, "~> 1.4"}
     ]
   end
 
