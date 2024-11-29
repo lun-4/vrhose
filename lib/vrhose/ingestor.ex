@@ -328,6 +328,61 @@ defmodule VRHose.Ingestor do
     end
   end
 
+  @wrld_id_regex ~r/wrld_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/
+
+  defp is_vrchat_feature(feature) do
+    maybe_uri = feature["uri"] || ""
+
+    feature["$type"] == "app.bsky.richtext.facet#link" and
+      (String.starts_with?(maybe_uri, "https://vrchat.com/home/world/wrld_") or
+         String.starts_with?(maybe_uri, "https://vrchat.com/home/launch?worldId=wrld_"))
+  end
+
+  defp extract_world_id(rec) do
+    first_wrld_link =
+      (rec["facets"] || [])
+      |> Enum.filter(fn facet ->
+        facet["features"]
+        |> Enum.filter(&is_vrchat_feature/1)
+        |> Enum.any?()
+      end)
+      |> Enum.at(0)
+      |> then(fn
+        nil ->
+          nil
+
+        facet ->
+          feature =
+            facet["features"]
+            |> Enum.filter(&is_vrchat_feature/1)
+            |> Enum.at(0)
+
+          feature["uri"]
+      end)
+
+    if first_wrld_link == nil do
+      # fallback to post text, maybe they posted the wrld id directly
+      @wrld_id_regex
+      |> Regex.run(rec["text"] || "")
+      |> then(fn
+        nil -> []
+        v -> v
+      end)
+      |> Enum.at(0)
+    else
+      # regex so it extracts wrld_ id (could do String.trim too if im up for optimizing lol)
+      @wrld_id_regex
+      |> Regex.run(first_wrld_link)
+      |> then(fn
+        nil ->
+          Logger.error("no wrld id found in first wrld link: #{inspect(first_wrld_link)}")
+
+        v ->
+          v
+      end)
+    end
+  end
+
   defp fanout_post(state, timestamp, msg) do
     post_record = msg["commit"]["record"]
     # IO.puts("#{inspect(timestamp)} -> #{post_text}")
@@ -347,7 +402,8 @@ defmodule VRHose.Ingestor do
       author_name: "<...processing...>",
       author_handle: Map.get(state.handles, msg["did"]) || msg["did"],
       hash: :erlang.phash2(text <> msg["did"]),
-      flags: post_flags |> Enum.join("")
+      flags: post_flags |> Enum.join(""),
+      world_id: extract_world_id(post_record)
     }
 
     {:ok, worker} = ExHashRing.Ring.find_node(VRHose.Hydrator.Ring, msg["did"])

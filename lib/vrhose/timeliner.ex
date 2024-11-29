@@ -91,7 +91,11 @@ defmodule VRHose.Timeliner do
        start_time: System.os_time(:second),
        counters: %__MODULE__.Counters{},
        rates: nil,
-       monitor_ref: monitor_ref
+       monitor_ref: monitor_ref,
+       world_ids: %{
+         time: System.os_time(:millisecond) / 1000,
+         ids: []
+       }
      }}
   end
 
@@ -130,6 +134,25 @@ defmodule VRHose.Timeliner do
 
   @impl true
   def handle_info({:post, post}, state) do
+    state =
+      if post.world_id != nil do
+        put_in(state.world_ids, %{
+          time: System.os_time(:millisecond) / 1000,
+          ids:
+            if length(state.world_ids.ids) > 10 do
+              state.world_ids.ids
+              # pop oldest
+              |> Enum.drop(-1)
+              # insert into earliest
+              |> List.insert_at(0, post.world_id)
+            else
+              [post.world_id | state.world_ids.ids]
+            end
+        })
+      else
+        state
+      end
+
     VRHose.TimelinerStorage.insert_post(state.storage, post)
 
     state =
@@ -221,6 +244,7 @@ defmodule VRHose.Timeliner do
       %{
         time: System.os_time(:millisecond) / 1000,
         batch: timeline,
+        worlds: state.world_ids,
         rates: rates(state)
       }}, state}
   end

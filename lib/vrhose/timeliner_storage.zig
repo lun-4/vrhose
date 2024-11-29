@@ -12,6 +12,7 @@ const Post = struct {
     author_name: []const u8,
     author_handle: []const u8,
     flags: []const u8,
+    world_id: ?[]const u8,
     hash: i64,
 
     const Self = @This();
@@ -24,6 +25,7 @@ const Post = struct {
             .author_name = try allocator.dupe(u8, self.author_name),
             .author_handle = try allocator.dupe(u8, self.author_handle),
             .flags = try allocator.dupe(u8, self.flags),
+            .world_id = if (self.world_id) |wrld_id| try allocator.dupe(u8, wrld_id) else null,
         };
     }
 
@@ -33,6 +35,7 @@ const Post = struct {
         allocator.free(self.author_name);
         allocator.free(self.author_handle);
         allocator.free(self.flags);
+        if (self.world_id) |id| allocator.free(id);
     }
 };
 const PostBuffer = ring.RingBuffer(Post);
@@ -151,6 +154,7 @@ test "it works" {
             .author_handle = "c",
             .hash = @intCast(19327 + i),
             .flags = "f",
+            .world_id = "w",
         });
     }
     //const storage = &storages[handle];
@@ -165,6 +169,7 @@ test "it works" {
         .author_handle = "c",
         .hash = @intCast(88567376),
         .flags = "f",
+        .world_id = "w",
     });
 
     const posts2 = try fetchA(allocator, handle, BASE_TIMESTAMP);
@@ -177,6 +182,7 @@ test "it works" {
         .author_handle = "c",
         .hash = @intCast(88567376),
         .flags = "f",
+        .world_id = "w",
     });
     const posts3 = try fetchA(allocator, handle, BASE_TIMESTAMP + MAX_POST_BUFFER_SIZE);
     try std.testing.expectEqual(2, posts3.len);
