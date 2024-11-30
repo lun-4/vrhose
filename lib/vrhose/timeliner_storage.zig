@@ -56,13 +56,17 @@ const Post = struct {
 };
 const PostBuffer = ring.RingBuffer(Post);
 const Storage = struct {
+    allocator: std.mem.Allocator,
     posts: PostBuffer,
 
     const Self = @This();
     pub fn init(allocator: std.mem.Allocator) Self {
         debug("initializing a storage", .{});
         const buf = PostBuffer.init(allocator, MAX_POST_BUFFER_SIZE) catch @panic("out of memory for post buffer init");
-        const self = Self{ .posts = buf };
+        const self = Self{
+            .posts = buf,
+            .allocator = allocator,
+        };
         return self;
     }
 
@@ -89,8 +93,9 @@ fn debug(comptime fmt: []const u8, args: anytype) void {
 }
 
 pub fn init(num_cores: usize) void {
-    return initA(beam.allocator, num_cores);
+    return initBeam(num_cores);
 }
+
 fn initA(allocator: std.mem.Allocator, num_cores: usize) void {
     debug("initializing for given amount of cores: {d}", .{num_cores});
     mutex.lock();
@@ -99,6 +104,19 @@ fn initA(allocator: std.mem.Allocator, num_cores: usize) void {
     for (0..num_cores) |i| {
         debug("init core {d}", .{i});
         const storage = Storage.init(allocator);
+        debug("initted {d}", .{i});
+        storages[i] = storage;
+    }
+}
+fn initBeam(num_cores: usize) void {
+    debug("initializing for given amount of cores: {d}", .{num_cores});
+    mutex.lock();
+    defer mutex.unlock();
+
+    storages = beam.allocator.alloc(Storage, num_cores) catch @panic("out of memory for initialization");
+    for (0..num_cores) |i| {
+        debug("init core {d}", .{i});
+        const storage = Storage.init(beam.allocator);
         debug("initted {d}", .{i});
         storages[i] = storage;
     }
@@ -112,7 +130,7 @@ pub fn create() usize {
 }
 
 pub fn insert_post(handle: usize, post: IncomingPost) void {
-    return insertPost(beam.allocator, handle, post);
+    return insertPost((&storages[handle]).allocator, handle, post);
 }
 
 const DEBUG = false;
@@ -139,7 +157,7 @@ fn insertPost(allocator: std.mem.Allocator, handle: usize, post: IncomingPost) v
 }
 
 pub fn fetch(handle: usize, timestamp: f64) ![]*Post {
-    return fetchA(beam.allocator, handle, timestamp);
+    return fetchA((&storages[handle]).allocator, handle, timestamp);
 }
 
 fn fetchA(allocator: std.mem.Allocator, handle: usize, timestamp: f64) ![]*Post {
