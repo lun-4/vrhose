@@ -156,14 +156,14 @@ fn insertPost(allocator: std.mem.Allocator, handle: usize, post: IncomingPost) v
     storage.posts.push(owned_post) catch @panic("must not be out of memory here");
 }
 
-pub fn fetch(handle: usize, timestamp: f64) ![]*Post {
+pub fn fetch(handle: usize, timestamp: f64) ![]*const Post {
     return fetchA((&storages[handle]).allocator, handle, timestamp);
 }
 
-fn fetchA(allocator: std.mem.Allocator, handle: usize, timestamp: f64) ![]*Post {
+fn fetchA(allocator: std.mem.Allocator, handle: usize, timestamp: f64) ![]*const Post {
     const storage = &storages[handle];
 
-    var result = std.ArrayList(*Post).init(allocator);
+    var result = std.ArrayList(*const Post).init(allocator);
     defer result.deinit();
 
     try result.ensureTotalCapacity(MAX_POST_RETURN_SIZE);
