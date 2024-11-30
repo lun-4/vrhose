@@ -171,11 +171,6 @@ pub fn fetch(handle: usize, timestamp: f64) !beam.term {
         }
     }
     var result = try storage.allocator.alloc(*const Post, cnt);
-    defer storage.allocator.free(result);
-
-    //var result = std.ArrayList(*const Post).init(allocator);
-    //defer result.deinit();
-    //try result.ensureTotalCapacity(MAX_POST_RETURN_SIZE);
 
     var idx: usize = 0;
     var it = storage.posts.iterator();
@@ -183,16 +178,13 @@ pub fn fetch(handle: usize, timestamp: f64) !beam.term {
         if (post.timestamp >= timestamp) {
             result[idx] = post;
             idx += 1;
-            //result.append(post) catch |err| switch (err) {
-            //    error.OutOfMemory => continue,
-            //    else => unreachable,
-            //};
         }
     }
     if (idx != cnt) @panic("must not be!");
-    //const posts_result = try result.toOwnedSlice();
     if (DEBUG) debug("sending {d} posts", .{result.len});
-    return beam.make(result, .{});
+    const term = beam.make(result, .{});
+    storage.allocator.free(result);
+    return term;
 
     //return result;
 }
