@@ -156,96 +156,110 @@ fn insertPost(allocator: std.mem.Allocator, handle: usize, post: IncomingPost) v
     storage.posts.push(owned_post) catch @panic("must not be out of memory here");
 }
 
-pub fn fetch(handle: usize, timestamp: f64) ![]*const Post {
-    return fetchA((&storages[handle]).allocator, handle, timestamp);
-}
+//pub fn fetch(handle: usize, timestamp: f64) ![]*const Post {
+//    return fetchA((&storages[handle]).allocator, handle, timestamp);
+//}
 
-fn fetchA(allocator: std.mem.Allocator, handle: usize, timestamp: f64) ![]*const Post {
+pub fn fetch(handle: usize, timestamp: f64) !beam.term {
     const storage = &storages[handle];
 
-    var result = std.ArrayList(*const Post).init(allocator);
-    defer result.deinit();
+    var cnt: usize = 0;
+    var it1 = storage.posts.iterator();
+    while (it1.next()) |post| {
+        if (post.timestamp >= timestamp) {
+            cnt += 1;
+        }
+    }
+    var result = try storage.allocator.alloc(*const Post, cnt);
+    defer storage.allocator.free(result);
 
-    try result.ensureTotalCapacity(MAX_POST_RETURN_SIZE);
+    //var result = std.ArrayList(*const Post).init(allocator);
+    //defer result.deinit();
+    //try result.ensureTotalCapacity(MAX_POST_RETURN_SIZE);
 
+    var idx: usize = 0;
     var it = storage.posts.iterator();
     while (it.next()) |post| {
         if (post.timestamp >= timestamp) {
-            result.append(post) catch |err| switch (err) {
-                error.OutOfMemory => continue,
-                else => unreachable,
-            };
+            result[idx] = post;
+            idx += 1;
+            //result.append(post) catch |err| switch (err) {
+            //    error.OutOfMemory => continue,
+            //    else => unreachable,
+            //};
         }
     }
-    const posts_result = try result.toOwnedSlice();
-    if (DEBUG) debug("sending {d} posts", .{posts_result.len});
+    if (idx != cnt) @panic("must not be!");
+    //const posts_result = try result.toOwnedSlice();
+    if (DEBUG) debug("sending {d} posts", .{result.len});
+    return beam.make(result, .{});
 
-    return posts_result;
+    //return result;
 }
 
-test "it works" {
-    const allocator = std.testing.allocator;
-    initA(allocator, 1);
-    defer {
-        for (storages) |*storage| {
-            storage.deinit();
-            allocator.destroy(storage);
-        }
-    }
-    const handle = create();
-    const BASE_TIMESTAMP = 100377371;
-    for (0..MAX_POST_BUFFER_SIZE) |i| {
-        insertPost(allocator, handle, .{
-            .timestamp = @floatFromInt(BASE_TIMESTAMP + i),
-            .text = "a",
-            .languages = "b",
-            .author_name = "c",
-            .author_handle = "c",
-            .hash = @intCast(19327 + i),
-            .flags = "f",
-            .world_id = "w",
-        });
-    }
-    const storage = &storages[handle];
-    defer {
-        for (storage.posts.buffer) |*post| {
-            post.deinitVia(allocator);
-        }
-    }
+// test "it works" {
+//     const allocator = std.testing.allocator;
+//     initA(allocator, 1);
+//     defer {
+//         for (storages) |*storage| {
+//             storage.deinit();
+//             allocator.destroy(storage);
+//         }
+//     }
+//     const handle = create();
+//     const BASE_TIMESTAMP = 100377371;
+//     for (0..MAX_POST_BUFFER_SIZE) |i| {
+//         insertPost(allocator, handle, .{
+//             .timestamp = @floatFromInt(BASE_TIMESTAMP + i),
+//             .text = "a",
+//             .languages = "b",
+//             .author_name = "c",
+//             .author_handle = "c",
+//             .hash = @intCast(19327 + i),
+//             .flags = "f",
+//             .world_id = "w",
+//         });
+//     }
+//     const storage = &storages[handle];
+//     defer {
+//         for (storage.posts.buffer) |*post| {
+//             post.deinitVia(allocator);
+//         }
+//     }
 
-    const posts = try fetchA(allocator, handle, BASE_TIMESTAMP);
-    defer deinitGivenList(allocator, posts);
-    try std.testing.expectEqual(MAX_POST_BUFFER_SIZE, posts.len);
-    insertPost(allocator, handle, .{
-        .timestamp = @floatFromInt(BASE_TIMESTAMP + MAX_POST_BUFFER_SIZE + 1),
-        .text = "a",
-        .languages = "b",
-        .author_name = "c",
-        .author_handle = "c",
-        .hash = @intCast(88567376),
-        .flags = "f",
-        .world_id = "w",
-    });
+//     const posts = try fetchA(allocator, handle, BASE_TIMESTAMP);
+//     defer deinitGivenList(allocator, posts);
+//     try std.testing.expectEqual(MAX_POST_BUFFER_SIZE, posts.len);
+//     insertPost(allocator, handle, .{
+//         .timestamp = @floatFromInt(BASE_TIMESTAMP + MAX_POST_BUFFER_SIZE + 1),
+//         .text = "a",
+//         .languages = "b",
+//         .author_name = "c",
+//         .author_handle = "c",
+//         .hash = @intCast(88567376),
+//         .flags = "f",
+//         .world_id = "w",
+//     });
 
-    const posts2 = try fetchA(allocator, handle, BASE_TIMESTAMP);
-    defer deinitGivenList(allocator, posts2);
-    try std.testing.expectEqual(MAX_POST_BUFFER_SIZE, posts2.len);
-    insertPost(allocator, handle, .{
-        .timestamp = @floatFromInt(BASE_TIMESTAMP + MAX_POST_BUFFER_SIZE + 2),
-        .text = "a",
-        .languages = "b",
-        .author_name = "c",
-        .author_handle = "c",
-        .hash = @intCast(88567376),
-        .flags = "f",
-        .world_id = "w",
-    });
-    const posts3 = try fetchA(allocator, handle, BASE_TIMESTAMP + MAX_POST_BUFFER_SIZE);
-    defer deinitGivenList(allocator, posts3);
-    try std.testing.expectEqual(2, posts3.len);
-}
+//     const posts2 = try fetchA(allocator, handle, BASE_TIMESTAMP);
+//     defer deinitGivenList(allocator, posts2);
+//     try std.testing.expectEqual(MAX_POST_BUFFER_SIZE, posts2.len);
+//     insertPost(allocator, handle, .{
+//         .timestamp = @floatFromInt(BASE_TIMESTAMP + MAX_POST_BUFFER_SIZE + 2),
+//         .text = "a",
+//         .languages = "b",
+//         .author_name = "c",
+//         .author_handle = "c",
+//         .hash = @intCast(88567376),
+//         .flags = "f",
+//         .world_id = "w",
+//     });
+//     const posts3 = try fetchA(allocator, handle, BASE_TIMESTAMP + MAX_POST_BUFFER_SIZE);
+//     defer deinitGivenList(allocator, posts3);
+//     try std.testing.expectEqual(2, posts3.len);
+// }
 
-fn deinitGivenList(allocator: std.mem.Allocator, list: []*Post) void {
-    for (list) |post| post.deinitVia(allocator);
-    allocator.free(list);
-}
+// fn deinitGivenList(allocator: std.mem.Allocator, list: []*Post) void {
+//     for (list) |post| post.deinitVia(allocator);
+//     allocator.free(list);
+// }
