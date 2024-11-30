@@ -328,6 +328,9 @@ defmodule VRHose.Ingestor do
     end
   end
 
+  # test posts:
+  # https://pdsls.dev/at/did:plc:iw5dbzqr3hbt4qrsqv5bsv2n/app.bsky.feed.post/3lbwdzpzu722e
+  # https://pdsls.dev/at/did:plc:ghmhveudel6es5chzycsi2hi/app.bsky.feed.post/3lb2ed5bl7222
   @wrld_id_regex ~r/wrld_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/
 
   defp is_vrchat_feature(feature) do

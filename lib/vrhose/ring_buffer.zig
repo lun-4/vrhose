@@ -35,12 +35,12 @@ pub fn RingBuffer(comptime T: type) type {
             self.len += 1;
         }
 
-        pub fn pop(self: *Self) ?T {
+        pub fn pop(self: *Self) ?*T {
             if (self.len == 0) {
                 return null;
             }
 
-            const item = self.buffer[self.head];
+            const item = &self.buffer[self.head];
             self.head = (self.head + 1) % self.buffer.len;
             self.len -= 1;
             return item;
@@ -86,13 +86,13 @@ pub fn RingBuffer(comptime T: type) type {
             buffer: *Self,
             current: usize,
 
-            pub fn next(self: *Iterator) ?T {
+            pub fn next(self: *Iterator) ?*T {
                 if (self.current >= self.buffer.len) {
                     return null;
                 }
                 const index = (self.buffer.head + self.current) % self.buffer.buffer.len;
                 self.current += 1;
-                return self.buffer.buffer[index];
+                return &self.buffer.buffer[index];
             }
         };
     };

@@ -5,7 +5,19 @@ const beam = @import("beam");
 const MAX_POST_BUFFER_SIZE = if (DEBUG) 400 else 35000; // assuming firehose goes bananas and is 500posts/sec, and we want to hold 70sec of history, that's 35000 posts
 const MAX_POST_RETURN_SIZE = if (DEBUG) 100 else 10000;
 
+const IncomingPost = struct {
+    timestamp: f64,
+    text: []const u8,
+    languages: []const u8,
+    author_name: []const u8,
+    author_handle: []const u8,
+    flags: []const u8,
+    world_id: ?[]const u8,
+    hash: i64,
+};
+
 const Post = struct {
+    init: bool,
     timestamp: f64,
     text: []const u8,
     languages: []const u8,
@@ -16,26 +28,30 @@ const Post = struct {
     hash: i64,
 
     const Self = @This();
-    pub fn copyVia(self: Self, allocator: std.mem.Allocator) !Post {
+    pub fn createFromIncoming(post: IncomingPost, allocator: std.mem.Allocator) !Self {
         return Self{
-            .timestamp = self.timestamp,
-            .hash = self.hash,
-            .text = try allocator.dupe(u8, self.text),
-            .languages = try allocator.dupe(u8, self.languages),
-            .author_name = try allocator.dupe(u8, self.author_name),
-            .author_handle = try allocator.dupe(u8, self.author_handle),
-            .flags = try allocator.dupe(u8, self.flags),
-            .world_id = if (self.world_id) |wrld_id| try allocator.dupe(u8, wrld_id) else null,
+            .init = true,
+            .timestamp = post.timestamp,
+            .hash = post.hash,
+            .text = try allocator.dupe(u8, post.text),
+            .languages = try allocator.dupe(u8, post.languages),
+            .author_name = try allocator.dupe(u8, post.author_name),
+            .author_handle = try allocator.dupe(u8, post.author_handle),
+            .flags = try allocator.dupe(u8, post.flags),
+            .world_id = if (post.world_id) |wrld_id| try allocator.dupe(u8, wrld_id) else null,
         };
     }
 
-    pub fn deinitVia(self: Self, allocator: std.mem.Allocator) void {
-        allocator.free(self.text);
-        allocator.free(self.languages);
-        allocator.free(self.author_name);
-        allocator.free(self.author_handle);
-        allocator.free(self.flags);
-        if (self.world_id) |id| allocator.free(id);
+    pub fn deinitVia(self: *Self, allocator: std.mem.Allocator) void {
+        if (self.init) {
+            allocator.free(self.text);
+            allocator.free(self.languages);
+            allocator.free(self.author_name);
+            allocator.free(self.author_handle);
+            allocator.free(self.flags);
+            if (self.world_id) |id| allocator.free(id);
+            self.init = false;
+        }
     }
 };
 const PostBuffer = ring.RingBuffer(Post);
@@ -48,6 +64,13 @@ const Storage = struct {
         const buf = PostBuffer.init(allocator, MAX_POST_BUFFER_SIZE) catch @panic("out of memory for post buffer init");
         const self = Self{ .posts = buf };
         return self;
+    }
+
+    pub fn deinit(self: *Self) void {
+        for (self.posts.buffer) |*post| {
+            post.deinitVia(self.posts.allocator);
+        }
+        self.posts.deinit();
     }
 };
 
@@ -88,13 +111,13 @@ pub fn create() usize {
     return handle;
 }
 
-pub fn insert_post(handle: usize, post: Post) void {
+pub fn insert_post(handle: usize, post: IncomingPost) void {
     return insertPost(beam.allocator, handle, post);
 }
 
 const DEBUG = false;
 
-fn insertPost(allocator: std.mem.Allocator, handle: usize, post: Post) void {
+fn insertPost(allocator: std.mem.Allocator, handle: usize, post: IncomingPost) void {
     //debug("insert!", .{});
     const storage = &storages[handle];
     if (storage.posts.len == MAX_POST_BUFFER_SIZE) {
@@ -111,18 +134,20 @@ fn insertPost(allocator: std.mem.Allocator, handle: usize, post: Post) void {
             .{ handle, storage.posts.readableLength(), MAX_POST_BUFFER_SIZE, post.timestamp, post.text, post.languages, post.author_handle, post.hash },
         );
     }
-    const owned_post = post.copyVia(allocator) catch @panic("ran out of memory for string dupe");
+    const owned_post = Post.createFromIncoming(post, allocator) catch @panic("ran out of memory for string dupe");
     storage.posts.push(owned_post) catch @panic("must not be out of memory here");
 }
 
-pub fn fetch(handle: usize, timestamp: f64) ![]Post {
+pub fn fetch(handle: usize, timestamp: f64) ![]*Post {
     return fetchA(beam.allocator, handle, timestamp);
 }
 
-fn fetchA(allocator: std.mem.Allocator, handle: usize, timestamp: f64) ![]Post {
+fn fetchA(allocator: std.mem.Allocator, handle: usize, timestamp: f64) ![]*Post {
     const storage = &storages[handle];
 
-    var result = std.ArrayList(Post).init(allocator);
+    var result = std.ArrayList(*Post).init(allocator);
+    defer result.deinit();
+
     try result.ensureTotalCapacity(MAX_POST_RETURN_SIZE);
 
     var it = storage.posts.iterator();
@@ -143,6 +168,12 @@ fn fetchA(allocator: std.mem.Allocator, handle: usize, timestamp: f64) ![]Post {
 test "it works" {
     const allocator = std.testing.allocator;
     initA(allocator, 1);
+    defer {
+        for (storages) |*storage| {
+            storage.deinit();
+            allocator.destroy(storage);
+        }
+    }
     const handle = create();
     const BASE_TIMESTAMP = 100377371;
     for (0..MAX_POST_BUFFER_SIZE) |i| {
@@ -157,9 +188,15 @@ test "it works" {
             .world_id = "w",
         });
     }
-    //const storage = &storages[handle];
+    const storage = &storages[handle];
+    defer {
+        for (storage.posts.buffer) |*post| {
+            post.deinitVia(allocator);
+        }
+    }
 
     const posts = try fetchA(allocator, handle, BASE_TIMESTAMP);
+    defer deinitGivenList(allocator, posts);
     try std.testing.expectEqual(MAX_POST_BUFFER_SIZE, posts.len);
     insertPost(allocator, handle, .{
         .timestamp = @floatFromInt(BASE_TIMESTAMP + MAX_POST_BUFFER_SIZE + 1),
@@ -173,6 +210,7 @@ test "it works" {
     });
 
     const posts2 = try fetchA(allocator, handle, BASE_TIMESTAMP);
+    defer deinitGivenList(allocator, posts2);
     try std.testing.expectEqual(MAX_POST_BUFFER_SIZE, posts2.len);
     insertPost(allocator, handle, .{
         .timestamp = @floatFromInt(BASE_TIMESTAMP + MAX_POST_BUFFER_SIZE + 2),
@@ -185,6 +223,11 @@ test "it works" {
         .world_id = "w",
     });
     const posts3 = try fetchA(allocator, handle, BASE_TIMESTAMP + MAX_POST_BUFFER_SIZE);
+    defer deinitGivenList(allocator, posts3);
     try std.testing.expectEqual(2, posts3.len);
-    @panic("shit");
+}
+
+fn deinitGivenList(allocator: std.mem.Allocator, list: []*Post) void {
+    for (list) |post| post.deinitVia(allocator);
+    allocator.free(list);
 }
