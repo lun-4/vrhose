@@ -193,7 +193,7 @@ defmodule VRHose.Timeliner do
                 |> List.insert_at(-1, wrld)
               else
                 # append
-                [state.world_ids.ids | [wrld]]
+                [state.world_ids.ids | wrld]
               end
             else
               state.world_ids.ids
