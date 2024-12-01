@@ -205,6 +205,10 @@ defmodule VRHose.Ingestor do
               "app.bsky.feed.repost" ->
                 fanout(state, :repost)
                 {:noreply, state}
+
+              "app.bsky.actor.profile" ->
+                fanout(state, :signup)
+                {:noreply, state}
             end
 
           "delete" ->
