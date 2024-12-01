@@ -104,6 +104,7 @@ defmodule VRHose.Timeliner do
           }
         end
       end)
+      |> Enum.reverse()
 
     {:ok,
      %{
@@ -189,9 +190,10 @@ defmodule VRHose.Timeliner do
                 # pop oldest
                 |> Enum.drop(-1)
                 # insert into earliest
-                |> List.insert_at(0, wrld)
+                |> List.insert_at(-1, wrld)
               else
-                [wrld | state.world_ids.ids]
+                # append
+                [state.world_ids.ids | [wrld]]
               end
             else
               state.world_ids.ids
