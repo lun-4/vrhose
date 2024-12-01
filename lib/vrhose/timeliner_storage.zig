@@ -11,6 +11,7 @@ const IncomingPost = struct {
     languages: []const u8,
     author_name: []const u8,
     author_handle: []const u8,
+    author_did: []const u8,
     flags: []const u8,
     world_id: ?[]const u8,
     hash: i64,
@@ -23,6 +24,7 @@ const Post = struct {
     languages: []const u8,
     author_name: []const u8,
     author_handle: []const u8,
+    author_did: []const u8,
     flags: []const u8,
     world_id: ?[]const u8,
     hash: i64,
@@ -37,6 +39,7 @@ const Post = struct {
             .languages = try allocator.dupe(u8, post.languages),
             .author_name = try allocator.dupe(u8, post.author_name),
             .author_handle = try allocator.dupe(u8, post.author_handle),
+            .author_did = try allocator.dupe(u8, post.author_did),
             .flags = try allocator.dupe(u8, post.flags),
             .world_id = if (post.world_id) |wrld_id| try allocator.dupe(u8, wrld_id) else null,
         };
@@ -48,6 +51,7 @@ const Post = struct {
             allocator.free(self.languages);
             allocator.free(self.author_name);
             allocator.free(self.author_handle);
+            allocator.free(self.author_did);
             allocator.free(self.flags);
             if (self.world_id) |id| allocator.free(id);
             self.init = false;
@@ -126,6 +130,11 @@ pub fn create() usize {
     const handle = last_handle;
     debug("creating for handle {d}", .{handle});
     last_handle += 1;
+    if (last_handle > storages.len) {
+        // TODO: make this possible. a timeliner could die and we can attach to terminate(). release the storage then
+        // reassign so that teimeliner crashes don't crash the entire app
+        @panic("no more handles available. one of the timeliners crashed and wants to continue, but that is not possible.");
+    }
     return handle;
 }
 

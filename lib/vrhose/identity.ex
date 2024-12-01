@@ -11,7 +11,7 @@ defmodule VRHose.Identity do
     field(:also_known_as, :string)
     field(:atproto_pds_endpoint, :string)
     field(:name, :string)
-    timestamps()
+    timestamps(autogenerate: {VRHose.Data, :generate_unix_timestamp, []})
   end
 
   def changeset(%__MODULE__{} = identity, params) do

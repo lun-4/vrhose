@@ -1,6 +1,7 @@
 defmodule VRHose.Timeliner do
   use GenServer
   require Logger
+  @worlds_in_timeline 10
 
   defmodule Counters do
     defstruct posts: 0,
@@ -82,6 +83,28 @@ defmodule VRHose.Timeliner do
 
     Process.send_after(self(), :compute_rates, 60000)
 
+    worlds = VRHose.World.last_worlds(@worlds_in_timeline)
+
+    resolved_worlds =
+      worlds
+      |> Enum.map(fn world ->
+        identity = VRHose.Identity.one(world.poster_did)
+
+        if identity == nil do
+          %{
+            id: world.vrchat_id,
+            author_handle: world.poster_did,
+            author_name: "<unknown>"
+          }
+        else
+          %{
+            id: world.vrchat_id,
+            author_handle: identity.also_known_as,
+            author_name: identity.name
+          }
+        end
+      end)
+
     {:ok,
      %{
        registered_with: register_with,
@@ -94,7 +117,7 @@ defmodule VRHose.Timeliner do
        monitor_ref: monitor_ref,
        world_ids: %{
          time: System.os_time(:millisecond) / 1000,
-         ids: []
+         ids: resolved_worlds
        }
      }}
   end
@@ -107,6 +130,17 @@ defmodule VRHose.Timeliner do
     monitor_ref = Process.monitor(ingestor_pid)
     :ok = VRHose.Ingestor.subscribe(register_with)
     {:noreply, put_in(state.monitor_ref, monitor_ref)}
+  end
+
+  defp persist_world(world_id, author_did) do
+    case VRHose.QuickLeader.acquire() do
+      :leader ->
+        {:ok, _} = VRHose.World.insert(world_id, author_did)
+        :ok
+
+      :not_leader ->
+        :ok
+    end
   end
 
   @impl true
@@ -140,14 +174,24 @@ defmodule VRHose.Timeliner do
           time: System.os_time(:millisecond) / 1000,
           ids:
             unless Enum.member?(state.world_ids.ids, post.world_id) do
-              if length(state.world_ids.ids) > 10 do
+              # one of the timeliners must become a leader so it can send this
+              # world id to the database
+              :ok = persist_world(post.world_id, post.author_did)
+
+              wrld = %{
+                id: post.world_id,
+                author_handle: post.author_handle,
+                author_name: post.author_name
+              }
+
+              if length(state.world_ids.ids) > @worlds_in_timeline do
                 state.world_ids.ids
                 # pop oldest
                 |> Enum.drop(-1)
                 # insert into earliest
-                |> List.insert_at(0, post.world_id)
+                |> List.insert_at(0, wrld)
               else
-                [post.world_id | state.world_ids.ids]
+                [wrld | state.world_ids.ids]
               end
             else
               state.world_ids.ids

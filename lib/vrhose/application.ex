@@ -21,6 +21,7 @@ defmodule VRHose.Application do
       [
         VRHose.Repo,
         VRHoseWeb.Telemetry,
+        {VRHose.QuickLeader, name: VRHose.QuickLeader},
         {Finch,
          name: VRHose.Finch,
          pools: %{
