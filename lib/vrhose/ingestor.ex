@@ -412,7 +412,8 @@ defmodule VRHose.Ingestor do
       author_did: msg["did"],
       hash: :erlang.phash2(text <> msg["did"]),
       flags: post_flags |> Enum.join(""),
-      world_id: extract_world_id(post_record)
+      world_id: extract_world_id(post_record),
+      micro_id: msg["commit"]["rkey"]
     }
 
     {:ok, worker} = ExHashRing.Ring.find_node(VRHose.Hydrator.Ring, msg["did"])

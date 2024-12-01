@@ -277,7 +277,8 @@ defmodule VRHose.Timeliner do
           d: post.timestamp,
           l: post.languages |> to_string,
           h: post.hash |> to_string,
-          f: post.flags |> to_string
+          f: post.flags |> to_string,
+          i: post.micro_id |> to_string
         }
       end)
 

@@ -14,6 +14,7 @@ const IncomingPost = struct {
     author_did: []const u8,
     flags: []const u8,
     world_id: ?[]const u8,
+    micro_id: []const u8,
     hash: i64,
 };
 
@@ -27,6 +28,7 @@ const Post = struct {
     author_did: []const u8,
     flags: []const u8,
     world_id: ?[]const u8,
+    micro_id: []const u8,
     hash: i64,
 
     const Self = @This();
@@ -42,6 +44,7 @@ const Post = struct {
             .author_did = try allocator.dupe(u8, post.author_did),
             .flags = try allocator.dupe(u8, post.flags),
             .world_id = if (post.world_id) |wrld_id| try allocator.dupe(u8, wrld_id) else null,
+            .micro_id = try allocator.dupe(u8, post.micro_id),
         };
     }
 
@@ -52,6 +55,7 @@ const Post = struct {
             allocator.free(self.author_name);
             allocator.free(self.author_handle);
             allocator.free(self.author_did);
+            allocator.free(self.micro_id);
             allocator.free(self.flags);
             if (self.world_id) |id| allocator.free(id);
             self.init = false;
