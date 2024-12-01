@@ -6,11 +6,13 @@ defmodule VRHose.Application do
   use Application
   require Logger
 
-  @jetstream "wss://jetstream2.us-east.bsky.network/subscribe?wantedCollections=app.bsky.feed.post" <>
+  @jetstream "wss://jetstream2.us-east.bsky.network/subscribe" <>
+               "?wantedCollections=app.bsky.feed.post" <>
                "&wantedCollections=app.bsky.feed.like" <>
                "&wantedCollections=app.bsky.graph.follow" <>
                "&wantedCollections=app.bsky.graph.block" <>
                "&wantedCollections=app.bsky.feed.repost" <>
+               "&wantedCollections=app.bsky.actor.profile" <>
                "&compress=true"
 
   @impl true

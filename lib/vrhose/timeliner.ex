@@ -8,7 +8,8 @@ defmodule VRHose.Timeliner do
               likes: 0,
               reposts: 0,
               follows: 0,
-              blocks: 0
+              blocks: 0,
+              signups: 0
   end
 
   def start_link(opts \\ []) do
@@ -216,13 +217,14 @@ defmodule VRHose.Timeliner do
   end
 
   @impl true
-  def handle_info(entity, state) when entity in [:like, :follow, :block, :repost] do
+  def handle_info(entity, state) when entity in [:like, :follow, :block, :repost, :signup] do
     key =
       case entity do
         :like -> :likes
         :follow -> :follows
         :block -> :blocks
         :repost -> :reposts
+        :signup -> :signups
       end
 
     state =
@@ -309,7 +311,7 @@ defmodule VRHose.Timeliner do
   end
 
   defp immediate_rates(state) do
-    fields = [:posts, :likes, :reposts, :follows, :blocks]
+    fields = [:posts, :likes, :reposts, :follows, :blocks, :signups]
 
     fields
     |> Enum.map(fn field ->
