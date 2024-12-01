@@ -67,6 +67,8 @@ defmodule VRHose.Ingestor do
        handles: %{},
        counter: 0,
        message_counter: 0,
+       unfiltered_post_counter: 0,
+       filtered_post_counter: 0,
        zero_counter: 0,
        conn_pid: nil,
        pong: true,
@@ -108,7 +110,9 @@ defmodule VRHose.Ingestor do
 
   @impl true
   def handle_info(:print_stats, state) do
-    Logger.info("#{DateTime.utc_now()} - message counter: #{state.message_counter}")
+    Logger.info(
+      "#{DateTime.utc_now()} - message counter: #{state.message_counter}, unfiltered posts: #{state.unfiltered_post_counter}, filtered posts: #{state.filtered_post_counter}"
+    )
 
     if state.zero_counter > 0 do
       Logger.warning("got zero messages for the #{state.zero_counter} time")
@@ -129,7 +133,10 @@ defmodule VRHose.Ingestor do
       end
 
     state = put_in(state.zero_counter, zero_counter)
-    {:noreply, put_in(state.message_counter, 0)}
+    state = put_in(state.message_counter, 0)
+    state = put_in(state.unfiltered_post_counter, 0)
+    state = put_in(state.filtered_post_counter, 0)
+    {:noreply, state}
   end
 
   @impl true
@@ -187,7 +194,8 @@ defmodule VRHose.Ingestor do
 
             case event_type do
               "app.bsky.feed.post" ->
-                fanout_post(state, timestamp, msg)
+                state = put_in(state.unfiltered_post_counter, state.unfiltered_post_counter + 1)
+                state = fanout_post(state, timestamp, msg)
                 {:noreply, state}
 
               "app.bsky.feed.like" ->
@@ -391,7 +399,30 @@ defmodule VRHose.Ingestor do
     end
   end
 
+  defp run_filters(post) do
+    text = post["text"] || ""
+
+    # TODO better filter chain
+    if String.contains?(text, "#nsfw") do
+      true
+    else
+      false
+    end
+  end
+
   defp fanout_post(state, timestamp, msg) do
+    post = msg["commit"]["record"]
+    filtered? = run_filters(post)
+
+    unless filtered? do
+      fanout_filtered_post(state, timestamp, msg)
+      state
+    else
+      put_in(state.filtered_post_counter, state.filtered_post_counter + 1)
+    end
+  end
+
+  defp fanout_filtered_post(state, timestamp, msg) do
     post_record = msg["commit"]["record"]
     # IO.puts("#{inspect(timestamp)} -> #{post_text}")
 
