@@ -183,11 +183,13 @@ pub fn fetch(handle: usize, timestamp: f64) !beam.term {
             cnt += 1;
         }
     }
+    if (cnt > MAX_POST_RETURN_SIZE) cnt = MAX_POST_RETURN_SIZE;
     var result = try storage.allocator.alloc(*const Post, cnt);
 
     var idx: usize = 0;
     var it = storage.posts.iterator();
     while (it.next()) |post| {
+        if (idx >= result.len) break;
         if (post.timestamp >= timestamp) {
             result[idx] = post;
             idx += 1;
