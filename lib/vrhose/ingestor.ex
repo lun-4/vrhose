@@ -90,7 +90,7 @@ defmodule VRHose.Ingestor do
     {:reply, :ok, put_in(state.subscribers, state.subscribers ++ [pid])}
   end
 
-  defp kill_websocket(reason) do
+  defp kill_websocket(state, reason) do
     ws_pid =
       Supervisor.which_children(VRHose.Supervisor)
       |> Enum.filter(fn {name, _, _, _} ->
@@ -99,8 +99,12 @@ defmodule VRHose.Ingestor do
       |> Enum.at(0)
       |> then(fn {_, pid, _, _} -> pid end)
 
-    Logger.warning("killing #{inspect(ws_pid)}.. ws should restart afterwards")
+    Logger.warning(
+      "killing #{inspect(ws_pid)} due to reason=#{inspect(reason)}.. ws should restart afterwards"
+    )
+
     :erlang.exit(ws_pid, reason)
+    put_in(state.conn_pid, nil)
   end
 
   @impl true
@@ -118,10 +122,13 @@ defmodule VRHose.Ingestor do
       Logger.warning("got zero messages for the #{state.zero_counter} time")
     end
 
-    if state.zero_counter > 20 do
-      Logger.error("must restart")
-      kill_websocket(:zero_msgs)
-    end
+    state =
+      if state.zero_counter > 20 do
+        Logger.error("must restart")
+        kill_websocket(state, :zero_msgs)
+      else
+        state
+      end
 
     Process.send_after(self(), :print_stats, 1000)
 
@@ -155,7 +162,7 @@ defmodule VRHose.Ingestor do
         "no connection available to ping, this should not happen, finding process to kill.."
       )
 
-      kill_websocket(:no_pid)
+      state = kill_websocket(state, :no_pid)
 
       {:noreply, put_in(state.pong, true)}
     end
@@ -273,7 +280,7 @@ defmodule VRHose.Ingestor do
       {:noreply, put_in(state.pong, true)}
     else
       Logger.warning("no pong... killing the connection")
-      kill_websocket(:timeout_ping)
+      state = kill_websocket(state, :timeout_ping)
       {:noreply, put_in(state.pong, true)}
     end
   end
