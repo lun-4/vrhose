@@ -10,7 +10,7 @@ defmodule VRHoseWeb.MainController do
       end)
 
     conn
-    |> json(timeline)
+    |> json(timeline |> vrcjson_workaround)
   end
 
   def fetch_delta(conn, %{"timestamp" => worldspace_timestamp_str}) do
