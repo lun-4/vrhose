@@ -75,6 +75,7 @@ defmodule VRHose.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
+      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       setup: ["deps.get", "zig.get"]
     ]
   end

@@ -297,18 +297,25 @@ defmodule VRHose.Ingestor do
   end
 
   defp maybe_quote_flag(rec) do
-    unless Enum.empty?(
-             (rec["facets"] || [])
-             |> Enum.filter(fn facet ->
-               facet["features"]
-               |> Enum.filter(fn feature ->
-                 is_link = feature["$type"] == "app.bsky.richtext.facet#link"
-                 is_bsky = String.starts_with?(feature["uri"] || "", "https://bsky.app")
-                 is_link and is_bsky
-               end)
-               |> Enum.any?()
-             end)
-           ) do
+    has_bsky_link_facet? =
+      Enum.any?(
+        (rec["facets"] || [])
+        |> Enum.filter(fn facet ->
+          facet["features"]
+          |> Enum.filter(fn feature ->
+            is_link = feature["$type"] == "app.bsky.richtext.facet#link"
+            is_bsky = String.starts_with?(feature["uri"] || "", "https://bsky.app")
+            is_link and is_bsky
+          end)
+          |> Enum.any?()
+        end)
+      )
+
+    has_post_embed? =
+      (rec["embed"] || %{})["$type"] == "app.bsky.embed.record" and
+        String.contains?(((rec["embed"] || %{})["record"] || %{})["uri"], "app.bsky.feed.post")
+
+    if has_bsky_link_facet? || has_post_embed? do
       ["q"]
     else
       []
@@ -432,17 +439,21 @@ defmodule VRHose.Ingestor do
     end
   end
 
+  def post_flags_for(post_record) do
+    (maybe_reply_flag(post_record) ++
+       maybe_quote_flag(post_record) ++
+       maybe_mention_flag(post_record) ++
+       maybe_media_flag(post_record))
+    |> Enum.join("")
+  end
+
   defp fanout_filtered_post(state, timestamp, msg) do
     post_record = msg["commit"]["record"]
     # IO.puts("#{inspect(timestamp)} -> #{post_text}")
 
     text = post_record["text"]
 
-    post_flags =
-      maybe_reply_flag(post_record) ++
-        maybe_quote_flag(post_record) ++
-        maybe_mention_flag(post_record) ++
-        maybe_media_flag(post_record)
+    post_flags = post_flags_for(post_record)
 
     post_data = %{
       timestamp: (timestamp |> DateTime.to_unix(:millisecond)) / 1000,
@@ -452,7 +463,7 @@ defmodule VRHose.Ingestor do
       author_handle: Map.get(state.handles, msg["did"]) || msg["did"],
       author_did: msg["did"],
       hash: :erlang.phash2(text <> msg["did"]),
-      flags: post_flags |> Enum.join(""),
+      flags: post_flags,
       world_id: extract_world_id(post_record),
       micro_id: msg["commit"]["rkey"]
     }

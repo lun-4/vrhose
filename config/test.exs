@@ -12,3 +12,10 @@ config :logger, level: :warning
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
+
+config :vrhose, VRHose.Repo,
+  pool_size: 1,
+  queue_target: 10000,
+  queue_timeout: 10000
+
+# pool: Ecto.Adapters.SQL.Sandbox
