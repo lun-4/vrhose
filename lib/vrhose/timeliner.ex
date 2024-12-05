@@ -77,12 +77,7 @@ defmodule VRHose.Timeliner do
     :ok = VRHose.Ingestor.subscribe(register_with)
     handle = VRHose.TimelinerStorage.create()
 
-    # computers have at least 1 core... right?
-    if handle == 0 do
-      Process.send_after(self(), :print_stats, 1000)
-    end
-
-    Process.send_after(self(), :compute_rates, 60000)
+    Process.send_after(self(), :compute_rates, 1000)
 
     worlds = VRHose.World.last_worlds(@worlds_in_timeline)
 
@@ -115,7 +110,7 @@ defmodule VRHose.Timeliner do
        debug_counters: %__MODULE__.Counters{},
        start_time: System.os_time(:second),
        counters: %__MODULE__.Counters{},
-       rates: nil,
+       rates: [],
        monitor_ref: monitor_ref,
        world_ids: %{
          time: System.os_time(:millisecond) / 1000,
@@ -156,15 +151,30 @@ defmodule VRHose.Timeliner do
     {:noreply, put_in(state.debug_counters, %__MODULE__.Counters{})}
   end
 
+  # last 120 seconds worth of counters
+  @rate_max_storage 120
+
   @impl true
   def handle_info(:compute_rates, state) do
-    Process.send_after(self(), :compute_rates, 60000)
-    # promote rates data we have right now (computed every minute)
-    # also reset the counters so we can actually change every minute rather than having a massively global average
-    rates = immediate_rates(state)
-    state = put_in(state.rates, rates)
+    state =
+      put_in(
+        state.rates,
+        if length(state.rates) > @rate_max_storage do
+          state.rates
+          |> Enum.drop(-1)
+          |> List.insert_at(0, state.counters)
+        else
+          state.rates
+          |> List.insert_at(0, state.counters)
+        end
+      )
+
+    if state.storage == 0 do
+      Logger.info("counters: #{inspect(state.counters)}")
+    end
+
     state = put_in(state.counters, %__MODULE__.Counters{})
-    state = put_in(state.start_time, System.os_time(:second))
+    Process.send_after(self(), :compute_rates, 1000)
     {:noreply, state}
   end
 
@@ -299,48 +309,58 @@ defmodule VRHose.Timeliner do
         time: System.os_time(:millisecond) / 1000,
         batch: timeline,
         worlds: state.world_ids,
-        rates: rates(state)
+        rates: rates(state, timestamp)
       }}, state}
   end
 
-  defp rates(state) do
-    if state.rates != nil do
-      state.rates
+  @counter_fields [:posts, :likes, :reposts, :follows, :blocks, :signups]
+
+  defp rates(state, timestamp) do
+    # calculate how many seconds back this timestamp is
+    now = System.os_time(:second)
+    seconds_from_now = timestamp - now
+
+    if Enum.empty?(state.rates) do
+      Logger.warning("sending inexact rates!")
+
+      state.counters
+      |> Map.from_struct()
+      |> Map.to_list()
+      |> Enum.map(fn {key, counter} ->
+        {key,
+         %{
+           rate: counter,
+           inexact: true
+         }}
+      end)
+      |> Map.new()
     else
-      immediate_rates(state)
+      Logger.debug("computing rates from #{seconds_from_now}sec")
+
+      rates =
+        state.rates
+        |> Enum.slice(0..seconds_from_now)
+        |> Enum.map(fn counters ->
+          Map.from_struct(counters)
+        end)
+
+      sums =
+        rates
+        |> Enum.reduce(%{}, fn counters, acc ->
+          Map.merge(acc, counters, fn _k, v1, v2 ->
+            v1 + v2
+          end)
+        end)
+
+      sums
+      |> Enum.map(fn {k, v} ->
+        {k,
+         %{
+           rate: v / length(rates),
+           inexact: false
+         }}
+      end)
+      |> Map.new()
     end
-  end
-
-  defp immediate_rates(state) do
-    fields = [:posts, :likes, :reposts, :follows, :blocks, :signups]
-
-    fields
-    |> Enum.map(fn field ->
-      # TODO use precomputed rate value from previous minute
-      count = Map.get(state.counters, field) || 0
-      time_horizon = System.os_time(:second) - state.start_time
-
-      inexact? = time_horizon < 55
-
-      rate =
-        cond do
-          # we're still inexact, but we didn't get any data yet
-          # this most likely happens because the user requested before any events arrived
-          # (very improbable lol)
-          # at least give them something
-          count == 0 and inexact? -> 30
-          # no events means no events
-          count == 0 -> 0
-          # we have events, compute rate
-          true -> count / time_horizon
-        end
-
-      {field,
-       %{
-         rate: rate,
-         inexact: inexact?
-       }}
-    end)
-    |> Map.new()
   end
 end
