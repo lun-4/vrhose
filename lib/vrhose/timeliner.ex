@@ -318,49 +318,69 @@ defmodule VRHose.Timeliner do
   defp rates(state, timestamp) do
     # calculate how many seconds back this timestamp is
     now = System.os_time(:second)
-    seconds_from_now = timestamp - now
+    seconds_from_now = now - timestamp
 
-    if seconds_from_now < 1 or Enum.empty?(state.rates) do
-      Logger.warning("sending inexact rates!")
+    Logger.info("seconds_from_now = #{seconds_from_now}, rate array=#{length(state.rates)}")
 
-      state.counters
-      |> Map.from_struct()
-      |> Map.to_list()
-      |> Enum.map(fn {key, counter} ->
-        {key,
-         %{
-           rate: counter,
-           inexact: true
-         }}
-      end)
-      |> Map.new()
-    else
-      Logger.debug("computing rates from #{seconds_from_now}sec")
+    cond do
+      Enum.empty?(state.rates) ->
+        Logger.warning("sending inexact rates due to no data!")
 
-      rates =
+        state.counters
+        |> Map.from_struct()
+        |> Map.to_list()
+        |> Enum.map(fn {key, counter} ->
+          {key,
+           %{
+             rate: counter,
+             inexact: true
+           }}
+        end)
+        |> Map.new()
+
+      seconds_from_now < 1 ->
+        Logger.warning("delta too low! reusing last counters delta=#{seconds_from_now}")
+
         state.rates
-        |> Enum.slice(0..seconds_from_now)
-        |> Enum.map(fn counters ->
-          Map.from_struct(counters)
+        |> Enum.at(-1)
+        |> Map.from_struct()
+        |> Map.to_list()
+        |> Enum.map(fn {key, counter} ->
+          {key,
+           %{
+             rate: counter,
+             inexact: true
+           }}
         end)
+        |> Map.new()
 
-      sums =
-        rates
-        |> Enum.reduce(%{}, fn counters, acc ->
-          Map.merge(acc, counters, fn _k, v1, v2 ->
-            v1 + v2
+      true ->
+        Logger.debug("computing rates from #{seconds_from_now}sec ago")
+
+        rates =
+          state.rates
+          |> Enum.slice(0..seconds_from_now)
+          |> Enum.map(fn counters ->
+            Map.from_struct(counters)
           end)
-        end)
 
-      sums
-      |> Enum.map(fn {k, v} ->
-        {k,
-         %{
-           rate: v / length(rates),
-           inexact: false
-         }}
-      end)
-      |> Map.new()
+        sums =
+          rates
+          |> Enum.reduce(%{}, fn counters, acc ->
+            Map.merge(acc, counters, fn _k, v1, v2 ->
+              v1 + v2
+            end)
+          end)
+
+        sums
+        |> Enum.map(fn {k, v} ->
+          {k,
+           %{
+             rate: v / length(rates),
+             inexact: false
+           }}
+        end)
+        |> Map.new()
     end
   end
 end
