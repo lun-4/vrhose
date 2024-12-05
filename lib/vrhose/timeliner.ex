@@ -320,7 +320,7 @@ defmodule VRHose.Timeliner do
     now = System.os_time(:second)
     seconds_from_now = timestamp - now
 
-    if Enum.empty?(state.rates) do
+    if seconds_from_now < 1 or Enum.empty?(state.rates) do
       Logger.warning("sending inexact rates!")
 
       state.counters
