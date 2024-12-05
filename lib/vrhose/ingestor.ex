@@ -103,7 +103,10 @@ defmodule VRHose.Ingestor do
       "killing #{inspect(ws_pid)} due to reason=#{inspect(reason)}.. ws should restart afterwards"
     )
 
-    :erlang.exit(ws_pid, reason)
+    if ws_pid != :restarting do
+      :erlang.exit(ws_pid, reason)
+    end
+
     put_in(state.conn_pid, nil)
   end
 
