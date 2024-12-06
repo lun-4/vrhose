@@ -14,7 +14,26 @@ config :vrhose,
 config :vrhose,
   ecto_repos: [VRHose.Repo]
 
-config :vrhose, VRHose.Repo, database: "vrhose_#{Mix.env()}.db"
+repos = [
+  VRHose.Repo,
+  VRHose.Repo.Replica1,
+  VRHose.Repo.Replica2,
+  VRHose.Repo.Replica3,
+  VRHose.Repo.Replica4,
+  VRHose.Repo.JanitorReplica
+]
+
+for repo <- repos do
+  config :vrhose, repo,
+    cache_size: -8_000,
+    pool_size: 1,
+    auto_vacuum: :incremental,
+    telemetry_prefix: [:vrhose, :repo],
+    telemetry_event: [VRHose.Repo.Instrumenter],
+    queue_target: 500,
+    queue_interval: 2000,
+    database: "vrhose_#{Mix.env()}.db"
+end
 
 # Configures the endpoint
 config :vrhose, VRHoseWeb.Endpoint,

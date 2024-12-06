@@ -21,23 +21,25 @@ defmodule VRHose.Application do
 
     children =
       [
-        VRHose.Repo,
-        VRHoseWeb.Telemetry,
-        {VRHose.QuickLeader, name: VRHose.QuickLeader},
-        {Finch,
-         name: VRHose.Finch,
-         pools: %{
-           :default => [size: 50, count: 50]
-         }},
-        {DNSCluster, query: Application.get_env(:vrhose, :dns_cluster_query) || :ignore},
-        {Phoenix.PubSub, name: VRHose.PubSub},
-        {
-          Registry,
-          # , partitions: System.schedulers_online()},
-          keys: :duplicate, name: Registry.Timeliners
-        },
-        {ExHashRing.Ring, name: VRHose.Hydrator.Ring}
+        VRHoseWeb.Telemetry
       ] ++
+        repos() ++
+        [
+          {VRHose.QuickLeader, name: VRHose.QuickLeader},
+          {Finch,
+           name: VRHose.Finch,
+           pools: %{
+             :default => [size: 50, count: 50]
+           }},
+          {DNSCluster, query: Application.get_env(:vrhose, :dns_cluster_query) || :ignore},
+          {Phoenix.PubSub, name: VRHose.PubSub},
+          {
+            Registry,
+            # , partitions: System.schedulers_online()},
+            keys: :duplicate, name: Registry.Timeliners
+          },
+          {ExHashRing.Ring, name: VRHose.Hydrator.Ring}
+        ] ++
         hydration_workers() ++
         [
           {VRHose.Ingestor, name: {:global, VRHose.Ingestor}},
@@ -53,14 +55,49 @@ defmodule VRHose.Application do
             id: "websocket"
           },
           VRHoseWeb.Endpoint
-        ] ++ timeliner_workers()
+        ] ++ timeliner_workers() ++ janitor_workers()
 
     start_telemetry()
+    IO.inspect(children, label: "application tree")
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: VRHose.Supervisor, max_restarts: 10]
     Supervisor.start_link(children, opts)
+  end
+
+  def primaries() do
+    Application.fetch_env!(:vrhose, :ecto_repos)
+  end
+
+  defp repos() do
+    Application.fetch_env!(:vrhose, :ecto_repos)
+    |> Enum.map(fn primary ->
+      primary
+      |> to_string
+      |> then(fn
+        "Elixir.VRHose.Repo" <> _ ->
+          spec = primary.repo_spec()
+          [primary] ++ spec.read_replicas ++ spec.dedicated_replicas
+
+        _ ->
+          []
+      end)
+    end)
+    |> Enum.reduce(fn x, acc -> x ++ acc end)
+    |> Enum.map(fn repo ->
+      case Application.fetch_env(:vrhose, repo) do
+        :error ->
+          raise RuntimeError, "Repo #{repo} not configured"
+
+        {:ok, cfg} ->
+          if Access.get(cfg, :database) == nil do
+            raise RuntimeError, "Repo #{repo} not configured. missing database"
+          end
+
+          repo
+      end
+    end)
   end
 
   def hydration_workers() do
@@ -127,6 +164,19 @@ defmodule VRHose.Application do
     # YtSearchWeb.Endpoint.Instrumenter.setup()
     PrometheusPhx.setup()
     Logger.info("telemetry started!")
+  end
+
+  defp janitor_specs do
+    [
+      [VRHose.Identity.Janitor, [every: 8 * 60, jitter: -60..60]]
+    ]
+  end
+
+  defp janitor_workers do
+    janitor_specs()
+    |> Enum.map(fn [module, opts] ->
+      VRHose.Tinycron.new(module, opts)
+    end)
   end
 
   # Tell Phoenix to update the endpoint configuration

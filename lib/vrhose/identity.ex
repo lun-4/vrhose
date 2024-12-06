@@ -22,7 +22,7 @@ defmodule VRHose.Identity do
 
   def one(did) do
     query = from(s in __MODULE__, where: s.did == ^did, select: s)
-    Repo.one(query, log: false)
+    Repo.replica(did).one(query, log: false)
   end
 
   def fake(did) do
@@ -53,5 +53,48 @@ defmodule VRHose.Identity do
       ],
       log: false
     )
+  end
+
+  defmodule Janitor do
+    require Logger
+
+    import Ecto.Query
+    alias VRHose.Identity
+    alias VRHose.Repo.JanitorReplica
+
+    def tick() do
+      Logger.info("cleaning identities...")
+
+      expiry_time =
+        NaiveDateTime.utc_now()
+        |> NaiveDateTime.add(-1, :day)
+        |> DateTime.from_naive!("Etc/UTC")
+        |> DateTime.to_unix()
+
+      deleted_count =
+        from(s in Identity,
+          where:
+            fragment("unixepoch(?)", s.inserted_at) <
+              ^expiry_time,
+          limit: 1000
+        )
+        |> JanitorReplica.all()
+        |> Enum.chunk_every(10)
+        |> Enum.map(fn chunk ->
+          chunk
+          |> Enum.map(fn identity ->
+            Repo.delete(identity)
+            1
+          end)
+          |> then(fn count ->
+            :timer.sleep(1500)
+            count
+          end)
+          |> Enum.sum()
+        end)
+        |> Enum.sum()
+
+      Logger.info("deleted #{deleted_count} identities")
+    end
   end
 end
