@@ -182,10 +182,12 @@ defmodule VRHose.Timeliner do
   def handle_info({:post, post}, state) do
     state =
       if post.world_id != nil do
+        world_ids = state.world_ids.ids |> Enum.map(fn wrld -> wrld.id end)
+
         put_in(state.world_ids, %{
           time: System.os_time(:millisecond) / 1000,
           ids:
-            unless Enum.member?(state.world_ids.ids, post.world_id) do
+            unless Enum.member?(world_ids, post.world_id) do
               # one of the timeliners must become a leader so it can send this
               # world id to the database
               :ok = persist_world(post.world_id, post.author_did)
