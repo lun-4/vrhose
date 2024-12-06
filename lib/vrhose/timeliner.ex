@@ -202,7 +202,7 @@ defmodule VRHose.Timeliner do
               if length(state.world_ids.ids) > @worlds_in_timeline do
                 state.world_ids.ids
                 # pop oldest
-                |> Enum.drop(-1)
+                |> Enum.drop(1)
                 # insert into earliest
                 |> List.insert_at(-1, wrld)
               else
