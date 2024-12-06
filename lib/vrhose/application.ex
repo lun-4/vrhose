@@ -169,7 +169,7 @@ defmodule VRHose.Application do
   defp janitor_specs do
     [
       [VRHose.Identity.Janitor, [every: 8 * 60, jitter: -60..60]],
-      [YtSearch.Repo.Janitor, [every: 60, jitter: -30..30]]
+      [VRHose.Repo.Janitor, [every: 60, jitter: -30..30]]
     ]
   end
 
