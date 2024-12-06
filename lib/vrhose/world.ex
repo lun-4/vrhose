@@ -19,7 +19,13 @@ defmodule VRHose.World do
   end
 
   def last_worlds(count \\ 10) do
-    query = from(s in __MODULE__, select: s, order_by: [desc: s.inserted_at], limit: ^count)
+    query =
+      from(s in __MODULE__,
+        select: s,
+        order_by: [desc: fragment("unixepoch(?)", s.inserted_at)],
+        limit: ^count
+      )
+
     Repo.all(query)
   end
 
