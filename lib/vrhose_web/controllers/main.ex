@@ -64,8 +64,25 @@ defmodule VRHoseWeb.MainController do
   end
 
   def fetch_delta(conn, %{"timestamp" => worldspace_timestamp_str}) do
+    case Integer.parse(worldspace_timestamp_str, 10) do
+      {worldspace_timestamp, ""} ->
+        unless worldspace_timestamp < 0 do
+          fetch_delta_validated(conn, worldspace_timestamp)
+        else
+          conn
+          |> put_status(400)
+          |> json(%{"error" => "Invalid negative timestamp: #{worldspace_timestamp_str}"})
+        end
+
+      _ ->
+        conn
+        |> put_status(400)
+        |> json(%{"error" => "Invalid timestamp: #{worldspace_timestamp_str}"})
+    end
+  end
+
+  def fetch_delta_validated(conn, worldspace_timestamp) do
     current_server_timestamp = DateTime.utc_now() |> DateTime.to_unix()
-    {worldspace_timestamp, ""} = Integer.parse(worldspace_timestamp_str, 10)
 
     # we need to convert from worldspace to serverspace
     # worldspace_timestamp = rem (realspace_timestamp |> DateTime.to_unix), 1000
