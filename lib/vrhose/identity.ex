@@ -35,6 +35,8 @@ defmodule VRHose.Identity do
   end
 
   def insert(did, aka, atproto_pds_endpoint, name) do
+    aka = String.downcase(aka)
+
     %__MODULE__{}
     |> changeset(%{
       did: did,
