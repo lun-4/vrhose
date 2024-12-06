@@ -159,7 +159,7 @@ defmodule VRHose.Timeliner do
     state =
       put_in(
         state.rates,
-        if length(state.rates) > @rate_max_storage do
+        if length(state.rates) >= @rate_max_storage do
           state.rates
           |> Enum.drop(-1)
           |> List.insert_at(0, state.counters)
