@@ -183,6 +183,7 @@ defmodule VRHose.Timeliner do
     state =
       if post.world_id != nil do
         world_ids = state.world_ids.ids |> Enum.map(fn wrld -> wrld.id end)
+        IO.inspect(world_ids, label: "world_ids from #{state.storage}")
 
         put_in(state.world_ids, %{
           time: System.os_time(:millisecond) / 1000,
@@ -209,7 +210,9 @@ defmodule VRHose.Timeliner do
                 state.world_ids.ids
                 |> List.insert_at(-1, wrld)
               end
+              |> IO.inspect(label: "AFTER world_ids from #{state.storage}")
             else
+              IO.puts("already a wrld id, not inserting #{state.storage}")
               state.world_ids.ids
             end
         })
