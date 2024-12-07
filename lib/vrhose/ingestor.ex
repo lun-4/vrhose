@@ -416,15 +416,32 @@ defmodule VRHose.Ingestor do
     end
   end
 
+  @wordfilter [
+    "nsfw",
+    "cock",
+    "dick",
+    "penis",
+    "nude",
+    "findom",
+    "pussy",
+    "porn",
+    "2dfd",
+    "onlyfans",
+    "fansly",
+    "bbw",
+    "paypig"
+  ]
   defp run_filters(post) do
     text = post["text"] || ""
 
-    # TODO better filter chain
-    if String.contains?(text, "#nsfw") do
-      true
-    else
-      false
-    end
+    # TODO better filter chain (regex)
+    @wordfilter
+    |> Enum.map(fn word ->
+      text
+      |> String.downcase()
+      |> String.contains?(word)
+    end)
+    |> Enum.any?()
   end
 
   defp fanout_post(state, timestamp, msg) do
