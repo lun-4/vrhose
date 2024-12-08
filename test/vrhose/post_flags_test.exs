@@ -11,4 +11,15 @@ defmodule VRHose.PostFlagsTest do
     flags = VRHose.Ingestor.post_flags_for(post)
     assert String.contains?(flags, "q")
   end
+
+  test "filters out post with just embed" do
+    post =
+      """
+      {"text":"","$type":"app.bsky.feed.post","embed":{"$type":"app.bsky.embed.external","external":{"uri":"https://youtube.com/shorts/jeRqbT6KU0w?si=EnjiH1_pnYhA1p72","thumb":{"$type":"blob","ref":{"$link":"bafkreihx4tdapw6zpt7fxgspswnfdpfeixmkupjollgdyn6zzq2sdq4dx4"},"mimeType":"image/jpeg","size":37954},"title":"Clip of Donald Trump Mocking a Disabled Person Resurfaces","description":"YouTube video by NowThis Impact"}},"langs":["en"],"createdAt":"2024-12-03T11:28:04.158Z"}
+      """
+      |> Jason.decode!()
+
+    {_, accepted?} = VRHose.Ingestor.run_filters(post)
+    assert not accepted?
+  end
 end

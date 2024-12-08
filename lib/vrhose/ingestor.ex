@@ -442,7 +442,7 @@ defmodule VRHose.Ingestor do
     "semen",
     "sperm"
   ]
-  defp run_filters(post) do
+  def run_filters(post) do
     text = (post["text"] || "") |> String.trim()
 
     # TODO faster filter chain (via regex)
