@@ -425,6 +425,7 @@ defmodule VRHose.Ingestor do
     "findom",
     "pussy",
     "porn",
+    "p0rn",
     "2dfd",
     "onlyfans",
     "fansly",
@@ -440,7 +441,9 @@ defmodule VRHose.Ingestor do
     "fetish",
     "blacked",
     "semen",
-    "sperm"
+    "sperm",
+    "stroking",
+    "#cum"
   ]
   def run_filters(post) do
     text = (post["text"] || "") |> String.trim()
