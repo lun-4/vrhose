@@ -429,7 +429,18 @@ defmodule VRHose.Ingestor do
     "onlyfans",
     "fansly",
     "bbw",
-    "paypig"
+    "paypig",
+    "horny",
+    "sissy",
+    "boobs",
+    "kinks",
+    "orgy",
+    "threesome",
+    "gangbang",
+    "fetish",
+    "blacked",
+    "semen",
+    "sperm"
   ]
   defp run_filters(post) do
     text = post["text"] || ""

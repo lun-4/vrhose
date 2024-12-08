@@ -318,8 +318,6 @@ defmodule VRHose.Timeliner do
       }}, state}
   end
 
-  @counter_fields [:posts, :likes, :reposts, :follows, :blocks, :signups]
-
   defp rates(state, timestamp) do
     # calculate how many seconds back this timestamp is
     now = System.os_time(:second)
