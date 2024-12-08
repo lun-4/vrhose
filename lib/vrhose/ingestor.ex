@@ -443,24 +443,30 @@ defmodule VRHose.Ingestor do
     "sperm"
   ]
   defp run_filters(post) do
-    text = post["text"] || ""
+    text = (post["text"] || "") |> String.trim()
 
-    # TODO better filter chain (regex)
-    @wordfilter
-    |> Enum.map(fn word ->
-      text
-      |> String.downcase()
-      |> String.contains?(word)
-    end)
-    |> Enum.any?()
+    # TODO faster filter chain (via regex)
+    unless String.length(text) == 0 do
+      {text,
+       @wordfilter
+       |> Enum.map(fn word ->
+         text
+         |> String.downcase()
+         |> String.contains?(word)
+       end)
+       |> Enum.any?()}
+    else
+      # filter out posts without any text
+      {text, false}
+    end
   end
 
   defp fanout_post(state, timestamp, msg) do
     post = msg["commit"]["record"]
-    filtered? = run_filters(post)
+    {text, filtered?} = run_filters(post)
 
     unless filtered? do
-      fanout_filtered_post(state, timestamp, msg)
+      fanout_filtered_post(state, timestamp, msg, text)
       state
     else
       put_in(state.filtered_post_counter, state.filtered_post_counter + 1)
@@ -475,12 +481,8 @@ defmodule VRHose.Ingestor do
     |> Enum.join("")
   end
 
-  defp fanout_filtered_post(state, timestamp, msg) do
+  defp fanout_filtered_post(state, timestamp, msg, text) do
     post_record = msg["commit"]["record"]
-    # IO.puts("#{inspect(timestamp)} -> #{post_text}")
-
-    text = post_record["text"]
-
     post_flags = post_flags_for(post_record)
 
     post_data = %{
