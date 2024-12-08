@@ -140,17 +140,6 @@ defmodule VRHose.Timeliner do
     end
   end
 
-  @impl true
-  def handle_info(:print_stats, state) do
-    Process.send_after(self(), :print_stats, 1000)
-
-    Logger.info(
-      "posts: #{state.debug_counters.posts}, likes: #{state.debug_counters.likes}, reposts: #{state.debug_counters.reposts}, follows: #{state.debug_counters.follows}"
-    )
-
-    {:noreply, put_in(state.debug_counters, %__MODULE__.Counters{})}
-  end
-
   # last 120 seconds worth of counters
   @rate_max_storage 120
 
