@@ -443,7 +443,8 @@ defmodule VRHose.Ingestor do
     "semen",
     "sperm",
     "stroking",
-    "#cum"
+    "#cum",
+    "selfcest"
   ]
   def run_filters(post) do
     text = (post["text"] || "") |> String.trim()
