@@ -489,12 +489,14 @@ defmodule VRHose.Ingestor do
     post_record = msg["commit"]["record"]
     post_flags = post_flags_for(post_record)
 
+    # NOTE: the hydrator may overwrite fields set here (currently author_name, author_handle, timestamp)
+    # so updates to formats here should also be carried out there
     post_data = %{
       timestamp: (timestamp |> DateTime.to_unix(:millisecond)) / 1000,
       text: text,
       languages: (post_record["langs"] || []) |> Enum.at(0) || "",
       author_name: "<...processing...>",
-      author_handle: Map.get(state.handles, msg["did"]) || msg["did"],
+      author_handle: "@" <> (Map.get(state.handles, msg["did"]) || msg["did"]),
       author_did: msg["did"],
       hash: :erlang.phash2(text <> msg["did"]),
       flags: post_flags,
