@@ -446,7 +446,23 @@ defmodule VRHose.Ingestor do
     "#cum",
     "selfcest",
     "incest",
-    "naked"
+    "naked",
+    "cumming",
+    "titties",
+    "boobies",
+    "gooning",
+    "cuckold",
+    "jacking off",
+    "masturbating",
+    "masturbate",
+    "fucktoy",
+    "fuck toy",
+    "abdl",
+    "bondage",
+    "shxta",
+    "irlshota",
+    "#shota",
+    "ageplay"
   ]
   def run_filters(post) do
     text = (post["text"] || "") |> String.trim()
