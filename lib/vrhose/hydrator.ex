@@ -35,7 +35,47 @@ defmodule VRHose.Hydrator do
     )
   end
 
-  defp process({did, post_data, subscribers} = event) do
+  defp process({_did, post_data, _subscribers} = event) do
+    if post_data.world_id == nil do
+      process_post(event)
+    else
+      is_good? = is_good_world?(post_data.world_id)
+      Logger.warning("is wrld #{post_data.world_id} good? #{inspect(is_good?)}")
+
+      if is_good? do
+        process_post(event)
+      end
+    end
+  end
+
+  @unwanted_tags [
+    "content_sex",
+    "content_adult"
+  ]
+
+  defp is_good_world?(wrld_id) do
+    case VRHose.VRChatWorld.fetch(wrld_id) do
+      {:ok, nil} ->
+        true
+
+      {:ok, world} ->
+        matches_unwanted_tags? =
+          world.tags
+          |> Jason.decode!()
+          |> Enum.map(fn tag ->
+            tag in @unwanted_tags
+          end)
+          |> Enum.any?()
+
+        # wanted when unwanted tags arent in the world
+        not matches_unwanted_tags?
+
+      {:error, _} ->
+        true
+    end
+  end
+
+  defp process_post({did, post_data, subscribers} = event) do
     identity = VRHose.Identity.one(did)
 
     post_data =

@@ -29,3 +29,5 @@ vrhose-*.tar
 .Elixir*.zig
 priv/lib
 *.db*
+
+.envrc
