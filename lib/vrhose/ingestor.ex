@@ -479,7 +479,7 @@ defmodule VRHose.Ingestor do
        |> Enum.any?()}
     else
       # filter out posts without any text
-      {text, false}
+      {text, true}
     end
   end
 
