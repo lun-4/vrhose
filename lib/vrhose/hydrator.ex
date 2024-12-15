@@ -27,7 +27,7 @@ defmodule VRHose.Hydrator do
   defp hydrate_with(post_data, %VRHose.Identity{} = identity) do
     post_data
     |> Map.put(:author_name, identity.name)
-    |> Map.put(:author_handle, "@" <> identity.also_known_as)
+    |> Map.put(:author_handle, VRHose.Identity.to_handle(identity))
     # recompute timestamp because we did some processing before making post ready to go
     |> Map.put(
       :timestamp,

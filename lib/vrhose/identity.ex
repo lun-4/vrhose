@@ -14,6 +14,16 @@ defmodule VRHose.Identity do
     timestamps(autogenerate: {VRHose.Data, :generate_unix_timestamp, []})
   end
 
+  def to_handle(%__MODULE__{} = identity) do
+    "@" <>
+      if identity.also_known_as == "handle.invalid" do
+        # fallback to did
+        identity.did
+      else
+        identity.also_known_as
+      end
+  end
+
   def changeset(%__MODULE__{} = identity, params) do
     identity
     |> cast(params, [:did, :also_known_as, :atproto_pds_endpoint, :name])

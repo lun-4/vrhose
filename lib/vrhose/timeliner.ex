@@ -95,7 +95,7 @@ defmodule VRHose.Timeliner do
         else
           %{
             id: world.vrchat_id,
-            author_handle: "@" <> identity.also_known_as,
+            author_handle: VRHose.Identity.to_handle(identity),
             author_name: identity.name
           }
         end
