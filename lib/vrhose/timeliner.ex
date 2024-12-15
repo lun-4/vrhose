@@ -89,13 +89,13 @@ defmodule VRHose.Timeliner do
         if identity == nil do
           %{
             id: world.vrchat_id,
-            author_handle: world.poster_did,
+            author_handle: "@" <> world.poster_did,
             author_name: "<unknown>"
           }
         else
           %{
             id: world.vrchat_id,
-            author_handle: identity.also_known_as,
+            author_handle: "@" <> identity.also_known_as,
             author_name: identity.name
           }
         end
