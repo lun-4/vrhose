@@ -2,6 +2,8 @@
 
 backend for Bluesky Firehose VR, available at https://vrchat.com/home/launch?worldId=wrld_52865286-5286-5286-5286-528652865286
 
+more information here!!! https://bsky.app/profile/natalie.ee/post/3ldcxzpmaxs2e
+
 To start your Phoenix server:
 
   * Run `mix setup` to install and setup dependencies
