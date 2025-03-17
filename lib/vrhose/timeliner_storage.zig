@@ -90,7 +90,7 @@ var mutex = std.Thread.Mutex{};
 var debug_log_mutex = std.Thread.Mutex{};
 
 // this approach (one core accesses only one "storage" out of the array)
-// lets us access those handles without requiring a global mutex, as long as fetching them stays in-mutex
+// lets us access those handles without requiring a global mutex, as long as fetching them stays in the same handle
 var storages: []Storage = undefined;
 var last_handle: usize = 0;
 
