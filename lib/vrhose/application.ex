@@ -6,7 +6,7 @@ defmodule VRHose.Application do
   use Application
   require Logger
 
-  @jetstream "wss://jetstream2.us-east.bsky.network/subscribe" <>
+  @jetstream "wss://jetstream.fire.hose.cam/subscribe" <>
                "?wantedCollections=app.bsky.feed.post" <>
                "&wantedCollections=app.bsky.feed.like" <>
                "&wantedCollections=app.bsky.graph.follow" <>
