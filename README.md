@@ -4,19 +4,13 @@ backend for Bluesky Firehose VR, available at https://vrchat.com/home/launch?wor
 
 more information here!!! https://bsky.app/profile/natalie.ee/post/3ldcxzpmaxs2e
 
-To start your Phoenix server:
+```
+git clone ...
+cd vrhose
+env MIX_ENV=prod mix deps.get
+env MIX_ENV=prod mix zig.get
+env MIX_ENV=prod mix compile
 
-  * Run `mix setup` to install and setup dependencies
-  * Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
-
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
-
-Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
-
-## Learn more
-
-  * Official website: https://www.phoenixframework.org/
-  * Guides: https://hexdocs.pm/phoenix/overview.html
-  * Docs: https://hexdocs.pm/phoenix
-  * Forum: https://elixirforum.com/c/phoenix-forum
-  * Source: https://github.com/phoenixframework/phoenix
+# and, for prod
+env MIX_ENV=prod mix phx.server
+```
