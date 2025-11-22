@@ -464,19 +464,23 @@ defmodule VRHose.Ingestor do
     "#shota",
     "ageplay"
   ]
+
+  # Compile the wordfilter into a single regex pattern for fast matching
+  # Escape special regex characters and join with | (OR operator)
+  @wordfilter_regex Regex.compile!(
+                      @wordfilter
+                      |> Enum.map(&Regex.escape/1)
+                      |> Enum.join("|"),
+                      "i"
+                    )
+
   def run_filters(post) do
     text = (post["text"] || "") |> String.trim()
 
-    # TODO faster filter chain (via regex)
     unless String.length(text) == 0 do
-      {text,
-       @wordfilter
-       |> Enum.map(fn word ->
-         text
-         |> String.downcase()
-         |> String.contains?(word)
-       end)
-       |> Enum.any?()}
+      # Use compiled regex for fast filtering - only scans text once
+      filtered? = Regex.match?(@wordfilter_regex, text)
+      {text, filtered?}
     else
       # filter out posts without any text
       {text, true}
