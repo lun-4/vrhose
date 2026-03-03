@@ -160,8 +160,6 @@ defmodule VRHose.Application do
     VRHose.Ingestor.Metrics.setup()
     VRHose.Timeliner.Metrics.setup()
 
-    # Note: disabled until prometheus-phx is integrated into prometheus-phoenix:
-    # YtSearchWeb.Endpoint.Instrumenter.setup()
     PrometheusPhx.setup()
     Logger.info("telemetry started!")
   end
