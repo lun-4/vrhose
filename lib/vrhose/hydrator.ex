@@ -14,8 +14,16 @@ defmodule VRHose.Hydrator do
   @impl true
   def init(_opts) do
     Logger.info("Initializing hydrator #{inspect(self())}")
-    ExHashRing.Ring.add_node(VRHose.Hydrator.Ring, self() |> :erlang.pid_to_list() |> to_string)
-    {:ok, %{}}
+    node_name = self() |> :erlang.pid_to_list() |> to_string()
+    ExHashRing.Ring.add_node(VRHose.Hydrator.Ring, node_name)
+    {:ok, %{node_name: node_name}}
+  end
+
+  @impl true
+  def terminate(_reason, state) do
+    Logger.info("Hydrator #{inspect(self())} terminating, removing from ring")
+    ExHashRing.Ring.remove_node(VRHose.Hydrator.Ring, state.node_name)
+    :ok
   end
 
   @impl true
